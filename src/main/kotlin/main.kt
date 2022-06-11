@@ -86,11 +86,7 @@ suspend fun ApplicationContext.run() {
 }
 
 fun migrate(dataSource: DataSource) {
-    val flyway = Flyway
-        .configure()
-        .dataSource(dataSource)
-        .load()
-    flyway.migrate()
+    Flyway.configure().dataSource(dataSource).load().migrate()
 }
 
 fun cancelOnShutdown(block: suspend CoroutineScope.() -> Unit): Unit = runBlocking {

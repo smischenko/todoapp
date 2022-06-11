@@ -1,3 +1,13 @@
+import org.flywaydb.core.Flyway
+import org.jooq.codegen.GenerationTool
+import org.jooq.meta.jaxb.Configuration
+import org.jooq.meta.jaxb.Database
+import org.jooq.meta.jaxb.Generate
+import org.jooq.meta.jaxb.Generator
+import org.jooq.meta.jaxb.Jdbc
+import org.jooq.meta.jaxb.Strategy
+import org.jooq.meta.jaxb.Target
+
 val kotlin_version: String by project
 val ktor_version: String by project
 val logback_version: String by project
@@ -42,24 +52,80 @@ dependencies {
     implementation("org.flywaydb:flyway-core:$flyway_version")
     implementation("org.jooq:jooq:$jooq_version")
     implementation("org.jooq:jooq-kotlin:$jooq_version")
+    implementation("org.testcontainers:postgresql:1.17.2")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 }
 
-//tasks {
-//    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-//        kotlinOptions {
-//            jvmTarget = "1.8"
-//            freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers" + "-opt-in=kotlin.RequiresOptIn"
-//        }
-//        sourceCompatibility = "1.8"
-//        targetCompatibility = "1.8"
-//    }
-//}
-
-tasks.compileKotlin {
-    kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers"
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.testcontainers:postgresql:1.17.2")
+        classpath("org.flywaydb:flyway-core:8.5.12")
+        classpath("org.postgresql:postgresql:42.3.6")
+        classpath("org.jooq:jooq-codegen:3.16.6")
     }
 }
+
+sourceSets.main {
+    java.srcDirs("build/generated-src/kotlin")
+}
+
+tasks.register("jooq-codegen") {
+    doLast {
+        val db = KPostgreSQLContainer("postgres:14.3")
+            .withUsername("postgres")
+            .withDatabaseName("postgres")
+            .withPassword("postgres")
+        db.start()
+
+        Flyway.configure()
+            .dataSource(db.jdbcUrl, "postgres", "postgres")
+            .locations("filesystem:src/main/resources/db/migration")
+            .load()
+            .migrate()
+
+        GenerationTool.generate(
+            Configuration()
+                .withJdbc(
+                    Jdbc()
+                        .withDriver("org.postgresql.Driver")
+                        .withUrl(db.jdbcUrl)
+                        .withUsername("postgres")
+                        .withPassword("postgres")
+                )
+                .withGenerator(
+                    Generator()
+                        .withName("org.jooq.codegen.KotlinGenerator")
+                        .withDatabase(
+                            Database()
+                                .withName("org.jooq.meta.postgres.PostgresDatabase")
+                                .withInputSchema("public")
+                        )
+                        .withGenerate(Generate())
+                        .withTarget(
+                            Target()
+                                .withPackageName("todoapp.jooq")
+                                .withDirectory("$buildDir/generated-src/kotlin")
+                        )
+                        .withStrategy(Strategy())
+                )
+        )
+
+        db.stop()
+    }
+}
+
+tasks.compileKotlin {
+    dependsOn("jooq-codegen")
+    kotlinOptions {
+        freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers"
+        freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
+    }
+}
+
+class KPostgreSQLContainer(image: String) :
+    org.testcontainers.containers.PostgreSQLContainer<KPostgreSQLContainer>(image)
