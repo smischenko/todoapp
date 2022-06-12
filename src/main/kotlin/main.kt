@@ -32,29 +32,36 @@ import kotlin.concurrent.thread
 val logger: Logger = LoggerFactory.getLogger("todoapp")
 
 fun main() = cancelOnShutdown {
-    applicationContext().use { it.run() }
+    applicationContext(localEnv()).use { it.run() }
 }
 
-fun applicationContext(): Resource<ApplicationContext> = resource {
-    val dataSource = dataSource().bind()
+data class Env(
+    val port: Int,
+    val databaseUrl: String,
+    val databaseUsername: String,
+    val databasePassword: String
+)
+
+fun applicationContext(env: Env): Resource<ApplicationContext> = resource {
+    val dataSource = dataSource(env).bind()
     val routes = Routes(dataSource)
-    val ktorServer = ktorServer(routes).bind()
+    val ktorServer = ktorServer(env, routes).bind()
     ApplicationContext(dataSource, ktorServer)
-}
+} release { logger.info("Application stopped") }
 
-fun dataSource(): Resource<DataSource> = resource {
+fun dataSource(env: Env): Resource<DataSource> = resource {
     HikariDataSource(
         HikariConfig().apply {
-            jdbcUrl = "jdbc:postgresql://localhost:5432/"
-            username = "postgres"
-            password = "postgres"
+            jdbcUrl = env.databaseUrl
+            username = env.databaseUsername
+            password = env.databasePassword
             isAutoCommit = false
         }
     )
 } release { it.close() }
 
-fun ktorServer(routes: Routes): Resource<ApplicationEngine> = resource {
-    embeddedServer(Netty) {
+fun ktorServer(env: Env, routes: Routes): Resource<ApplicationEngine> = resource {
+    embeddedServer(Netty, port = env.port) {
         installContentNegotiation()
         installStatusPages()
         installRouting(routes)
@@ -97,8 +104,14 @@ fun cancelOnShutdown(block: suspend CoroutineScope.() -> Unit): Unit = runBlocki
         runBlocking {
             withTimeoutOrNull(10_000) {
                 job.cancelAndJoin()
-                logger.info("Application stopped")
             } ?: logger.warn("Application stop timeout")
         }
     })
 }
+
+fun localEnv(): Env = Env(
+    port = 80,
+    databaseUrl = "jdbc:postgresql://localhost:5432/",
+    databaseUsername = "postgres",
+    databasePassword = "postgres"
+)

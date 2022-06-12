@@ -1,4 +1,5 @@
 import org.flywaydb.core.Flyway
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions
 import org.jooq.codegen.GenerationTool
 import org.jooq.meta.jaxb.Configuration
 import org.jooq.meta.jaxb.Database
@@ -16,6 +17,8 @@ val postgres_version: String by project
 val hikari_version: String by project
 val flyway_version: String by project
 val jooq_version: String by project
+val kotest_version: String by project
+val testcontainers_version: String by project
 
 plugins {
     application
@@ -54,8 +57,11 @@ dependencies {
     implementation("org.jooq:jooq-kotlin:$jooq_version")
     implementation("org.testcontainers:postgresql:1.17.2")
     implementation("ch.qos.logback:logback-classic:$logback_version")
-    testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
+    testImplementation("io.kotest:kotest-runner-junit5-jvm:$kotest_version")
+    testImplementation("io.kotest:kotest-assertions-core:$kotest_version")
+    testImplementation("org.testcontainers:postgresql:$testcontainers_version")
+    testImplementation("io.ktor:ktor-client-core:$ktor_version")
+    testImplementation("io.ktor:ktor-client-cio:$ktor_version")
 }
 
 buildscript {
@@ -119,12 +125,22 @@ tasks.register("jooq-codegen") {
     }
 }
 
+val kotlinJvmOptions: KotlinJvmOptions.() -> Unit = {
+    freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers"
+    freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
+}
+
 tasks.compileKotlin {
     dependsOn("jooq-codegen")
-    kotlinOptions {
-        freeCompilerArgs = freeCompilerArgs + "-Xcontext-receivers"
-        freeCompilerArgs = freeCompilerArgs + "-opt-in=kotlin.RequiresOptIn"
-    }
+    kotlinOptions(kotlinJvmOptions)
+}
+
+tasks.compileTestKotlin {
+    kotlinOptions(kotlinJvmOptions)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 class KPostgreSQLContainer(image: String) :
