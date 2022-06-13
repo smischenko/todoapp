@@ -12,6 +12,7 @@ import io.ktor.server.application.install
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.callloging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
@@ -65,6 +66,7 @@ fun ktorServer(env: Env, routes: Routes): Resource<ApplicationEngine> = resource
         installContentNegotiation()
         installStatusPages()
         installRouting(routes)
+        installCallLogging()
     }
 } release { it.stop() }
 
@@ -79,6 +81,8 @@ fun Application.installStatusPages() =
     }
 
 fun Application.installRouting(routes: Routes) = install(Routing) { routes() }
+
+fun Application.installCallLogging() = install(CallLogging)
 
 data class ApplicationContext(
     val dataSource: DataSource,
