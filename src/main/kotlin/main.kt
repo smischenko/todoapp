@@ -32,7 +32,7 @@ import kotlin.concurrent.thread
 val logger: Logger = LoggerFactory.getLogger("todoapp")
 
 fun main() = cancelOnShutdown {
-    applicationContext(localEnv()).use { it.run() }
+    applicationContext(env()).use { it.run() }
 }
 
 data class Env(
@@ -109,9 +109,9 @@ fun cancelOnShutdown(block: suspend CoroutineScope.() -> Unit): Unit = runBlocki
     })
 }
 
-fun localEnv(): Env = Env(
+fun env(): Env = Env(
     port = 80,
-    databaseUrl = "jdbc:postgresql://localhost:5432/",
-    databaseUsername = "postgres",
-    databasePassword = "postgres"
+    databaseUrl = System.getenv("DATABASE_URL"),
+    databaseUsername = System.getenv("DATABASE_USERNAME"),
+    databasePassword = System.getenv("DATABASE_PASSWORD"),
 )
