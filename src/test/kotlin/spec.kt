@@ -3,6 +3,7 @@ package todoapp
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.kotest.assertions.asClue
+import io.kotest.assertions.json.shouldEqualJson
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
@@ -85,7 +86,15 @@ class Spec : FunSpec({
             response.asClue {
                 it.status shouldBe HttpStatusCode.OK
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
-                it.bodyAsText() shouldBe """{"todo":[{"id":1,"text":"Купить молока","done":false,"index":0},{"id":2,"text":"Купить хлеба","done":false,"index":1},{"id":3,"text":"Купить яйца","done":false,"index":2}]}"""
+                it.bodyAsText() shouldEqualJson """
+                    |{
+                    |   "todo":[
+                    |       {"id":1,"text":"Купить молока","done":false,"index":0},
+                    |       {"id":2,"text":"Купить хлеба","done":false,"index":1},
+                    |       {"id":3,"text":"Купить яйца","done":false,"index":2}
+                    |   ]
+                    |}
+                    |""".trimMargin()
             }
         }
     }
