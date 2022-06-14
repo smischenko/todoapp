@@ -4,6 +4,7 @@ services:
 
   todoapp:
     build: .
+    restart: always
     ports:
       - "80:80"
     environment:
