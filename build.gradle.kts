@@ -17,6 +17,7 @@ val postgres_version: String by project
 val hikari_version: String by project
 val flyway_version: String by project
 val jooq_version: String by project
+val micrometer_version: String by project
 val kotest_version: String by project
 val testcontainers_version: String by project
 
@@ -48,6 +49,8 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktor_version")
     implementation("io.ktor:ktor-server-call-logging:$ktor_version")
     implementation("io.ktor:ktor-server-netty-jvm:$ktor_version")
+    implementation("io.ktor:ktor-server-metrics-micrometer:$ktor_version")
+    implementation("io.micrometer:micrometer-registry-prometheus:$micrometer_version")
     implementation(platform("io.arrow-kt:arrow-stack:$arrow_version"))
     implementation("io.arrow-kt:arrow-fx-coroutines")
     implementation("io.arrow-kt:arrow-fx-stm")

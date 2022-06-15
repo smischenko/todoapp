@@ -15,7 +15,24 @@ services:
       - postgres
 
   postgres:
-    image: "postgres:14.3"
+    image: postgres:14.3
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+
+  prometheus:
+    image: prom/prometheus:v2.36.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+
+  grafana:
+    image: grafana/grafana:8.5.6
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:
+  prometheus-data:

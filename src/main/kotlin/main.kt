@@ -8,15 +8,23 @@ import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
+import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.callloging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.path
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import io.micrometer.prometheus.PrometheusConfig
+import io.micrometer.prometheus.PrometheusMeterRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
@@ -67,6 +75,7 @@ fun ktorServer(env: Env, routes: Routes): Resource<ApplicationEngine> = resource
         installStatusPages()
         installRouting(routes)
         installCallLogging()
+        installMetrics()
     }
 } release { it.stop() }
 
@@ -82,7 +91,22 @@ fun Application.installStatusPages() =
 
 fun Application.installRouting(routes: Routes) = install(Routing) { routes() }
 
-fun Application.installCallLogging() = install(CallLogging)
+fun Application.installCallLogging() =
+    install(CallLogging) {
+        filter { call -> call.request.path() != "/metrics" }
+    }
+
+fun Application.installMetrics() {
+    val prometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+    install(MicrometerMetrics) {
+        registry = prometheusMeterRegistry
+    }
+    routing {
+        get("/metrics") {
+            call.respondText(prometheusMeterRegistry.scrape())
+        }
+    }
+}
 
 data class ApplicationContext(
     val dataSource: DataSource,
