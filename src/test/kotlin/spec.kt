@@ -128,6 +128,7 @@ class TestEnvironment {
         databaseUrl = postgres.jdbcUrl,
         databaseUsername = "postgres",
         databasePassword = "postgres",
+        zipkinServerUrl = "http://localhost"
     )
 
     val applicationUrl = "http://localhost:${env.port}"

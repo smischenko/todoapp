@@ -3,6 +3,7 @@ package todoapp
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.continuations.resource
 import arrow.fx.coroutines.release
+import brave.Tracing
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.HttpStatusCode
@@ -48,13 +49,15 @@ data class Env(
     val port: Int,
     val databaseUrl: String,
     val databaseUsername: String,
-    val databasePassword: String
+    val databasePassword: String,
+    val zipkinServerUrl: String
 )
 
 fun applicationContext(env: Env): Resource<ApplicationContext> = resource {
     val dataSource = dataSource(env).bind()
     val routes = Routes(dataSource)
-    val ktorServer = ktorServer(env, routes).bind()
+    val tracing = tracing(env).bind()
+    val ktorServer = ktorServer(env, routes, tracing).bind()
     ApplicationContext(dataSource, ktorServer)
 } release { logger.info("Application stopped") }
 
@@ -69,12 +72,13 @@ fun dataSource(env: Env): Resource<DataSource> = resource {
     )
 } release { it.close() }
 
-fun ktorServer(env: Env, routes: Routes): Resource<ApplicationEngine> = resource {
+fun ktorServer(env: Env, routes: Routes, tracing: Tracing): Resource<ApplicationEngine> = resource {
     embeddedServer(Netty, port = env.port) {
         installContentNegotiation()
         installStatusPages()
         installRouting(routes)
         installCallLogging()
+        installTracing(tracing)
         installMetrics()
     }
 } release { it.stop() }
@@ -94,6 +98,11 @@ fun Application.installRouting(routes: Routes) = install(Routing) { routes() }
 fun Application.installCallLogging() =
     install(CallLogging) {
         filter { call -> call.request.path() != "/metrics" }
+    }
+
+fun Application.installTracing(tracing: Tracing) =
+    install(ZipkinServerTracing) {
+        this.tracing = tracing
     }
 
 fun Application.installMetrics() {
@@ -142,4 +151,5 @@ fun env(): Env = Env(
     databaseUrl = System.getenv("DATABASE_URL"),
     databaseUsername = System.getenv("DATABASE_USERNAME"),
     databasePassword = System.getenv("DATABASE_PASSWORD"),
+    zipkinServerUrl = System.getenv("ZIPKIN_SERVER_URL")
 )

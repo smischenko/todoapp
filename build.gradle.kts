@@ -51,6 +51,10 @@ dependencies {
     implementation("io.ktor:ktor-server-netty-jvm:$ktor_version")
     implementation("io.ktor:ktor-server-metrics-micrometer:$ktor_version")
     implementation("io.micrometer:micrometer-registry-prometheus:$micrometer_version")
+    implementation("io.ktor:ktor-client-core:$ktor_version")
+    implementation("io.ktor:ktor-client-cio:$ktor_version")
+    implementation("io.zipkin.brave:brave:5.13.3")
+    implementation("io.zipkin.reporter2:zipkin-sender-urlconnection:2.16.3")
     implementation(platform("io.arrow-kt:arrow-stack:$arrow_version"))
     implementation("io.arrow-kt:arrow-fx-coroutines")
     implementation("io.arrow-kt:arrow-fx-stm")
@@ -59,14 +63,11 @@ dependencies {
     implementation("org.flywaydb:flyway-core:$flyway_version")
     implementation("org.jooq:jooq:$jooq_version")
     implementation("org.jooq:jooq-kotlin:$jooq_version")
-    implementation("org.testcontainers:postgresql:1.17.2")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     testImplementation("io.kotest:kotest-runner-junit5-jvm:$kotest_version")
     testImplementation("io.kotest:kotest-assertions-core:$kotest_version")
     testImplementation("io.kotest:kotest-assertions-json:$kotest_version")
     testImplementation("org.testcontainers:postgresql:$testcontainers_version")
-    testImplementation("io.ktor:ktor-client-core:$ktor_version")
-    testImplementation("io.ktor:ktor-client-cio:$ktor_version")
 }
 
 buildscript {
