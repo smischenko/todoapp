@@ -68,6 +68,7 @@ dependencies {
     testImplementation("io.kotest:kotest-assertions-core:$kotest_version")
     testImplementation("io.kotest:kotest-assertions-json:$kotest_version")
     testImplementation("org.testcontainers:postgresql:$testcontainers_version")
+    testImplementation("com.github.tomakehurst:wiremock-jre8:2.33.2")
 }
 
 buildscript {

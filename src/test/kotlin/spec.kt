@@ -1,5 +1,6 @@
 package todoapp
 
+import com.github.tomakehurst.wiremock.client.WireMock
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.kotest.assertions.asClue
@@ -25,6 +26,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
+import org.testcontainers.containers.BindMode
+import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import todoapp.jooq.tables.references.TODO
 import java.net.ServerSocket
@@ -109,6 +112,7 @@ class Spec : FunSpec({
 })
 
 class TestEnvironment {
+
     private val postgres = KPostgreSQLContainer("postgres:14.3")
         .withUsername("postgres")
         .withPassword("postgres")
@@ -123,12 +127,18 @@ class TestEnvironment {
         }
     )
 
+    private val wireMockContainer = WireMockContainer("wiremock/wiremock:2.32.0-alpine")
+        .withClasspathResourceMapping("wiremock", "/home/wiremock", BindMode.READ_ONLY)
+        .also { it.start() }
+
+    val wireMock = WireMock(wireMockContainer.host, wireMockContainer.port)
+
     private val env = Env(
         port = availablePort(),
         databaseUrl = postgres.jdbcUrl,
         databaseUsername = "postgres",
         databasePassword = "postgres",
-        zipkinServerUrl = "http://localhost"
+        zipkinServerUrl = "${wireMockContainer.url}/zipkin"
     )
 
     val applicationUrl = "http://localhost:${env.port}"
@@ -152,6 +162,7 @@ class TestEnvironment {
             deleteFrom(TODO).execute()
             execute("SELECT setval('todo_id_seq', 1, false)")
         }
+        wireMock.resetToDefaultMappings()
     }
 
     suspend fun close() {
@@ -159,9 +170,22 @@ class TestEnvironment {
         applicationJob.cancelAndJoin()
         dataSource.close()
         postgres.stop()
+        wireMockContainer.stop()
     }
 }
 
 class KPostgreSQLContainer(image: String) : PostgreSQLContainer<KPostgreSQLContainer>(image)
+
+class WireMockContainer(image: String) : GenericContainer<WireMockContainer>(image) {
+    init {
+        addExposedPort(8080)
+    }
+
+    val port: Int
+        get() = getMappedPort(8080)
+
+    val url: String
+        get() = "http://$host:$port"
+}
 
 fun availablePort(): Int = ServerSocket(0).use { it.localPort }
