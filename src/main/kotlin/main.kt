@@ -8,7 +8,6 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.Application
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.ApplicationEngine
@@ -42,38 +41,59 @@ import kotlin.concurrent.thread
 val logger: Logger = LoggerFactory.getLogger("todoapp")
 
 fun main() = cancelOnShutdown {
-    applicationContext(env()).use { it.run() }
+    application(properties()).run()
 }
 
-data class Env(
-    val port: Int,
-    val databaseUrl: String,
-    val databaseUsername: String,
-    val databasePassword: String,
+suspend fun Resource<Application>.run() = use { it() }
+
+typealias Application = suspend () -> Unit
+
+typealias KtorApplication = io.ktor.server.application.Application
+
+data class ApplicationProperties(
+    val ktorProperties: KtorProperties,
+    val dataSourceProperties: DataSourceProperties,
+    val tracingProperties: TracingProperties
+)
+
+data class KtorProperties(val port: Int)
+
+data class DataSourceProperties(
+    val url: String,
+    val username: String,
+    val password: String
+)
+
+data class TracingProperties(
     val zipkinServerUrl: String
 )
 
-fun applicationContext(env: Env): Resource<ApplicationContext> = resource {
-    val dataSource = dataSource(env).bind()
+fun application(properties: ApplicationProperties): Resource<Application> = resource {
+    val dataSource = dataSource(properties.dataSourceProperties).bind()
     val routes = Routes(dataSource)
-    val tracing = tracing(env).bind()
-    val ktorServer = ktorServer(env, routes, tracing).bind()
-    ApplicationContext(dataSource, ktorServer)
+    val tracing = tracing(properties.tracingProperties).bind()
+    val ktorServer = ktorServer(properties.ktorProperties, routes, tracing).bind()
+    suspend {
+        migrate(dataSource)
+        ktorServer.start(wait = false)
+        logger.info("Application started")
+        awaitCancellation()
+    }
 } release { logger.info("Application stopped") }
 
-fun dataSource(env: Env): Resource<DataSource> = resource {
+fun dataSource(properties: DataSourceProperties): Resource<DataSource> = resource {
     HikariDataSource(
         HikariConfig().apply {
-            jdbcUrl = env.databaseUrl
-            username = env.databaseUsername
-            password = env.databasePassword
+            jdbcUrl = properties.url
+            username = properties.username
+            password = properties.password
             isAutoCommit = false
         }
     )
 } release { it.close() }
 
-fun ktorServer(env: Env, routes: Routes, tracing: Tracing): Resource<ApplicationEngine> = resource {
-    embeddedServer(Netty, port = env.port) {
+fun ktorServer(properties: KtorProperties, routes: Routes, tracing: Tracing): Resource<ApplicationEngine> = resource {
+    embeddedServer(Netty, port = properties.port) {
         installContentNegotiation()
         installStatusPages()
         installRouting(routes)
@@ -83,9 +103,9 @@ fun ktorServer(env: Env, routes: Routes, tracing: Tracing): Resource<Application
     }
 } release { it.stop() }
 
-fun Application.installContentNegotiation() = install(ContentNegotiation) { json() }
+fun KtorApplication.installContentNegotiation() = install(ContentNegotiation) { json() }
 
-fun Application.installStatusPages() =
+fun KtorApplication.installStatusPages() =
     install(StatusPages) {
         exception<Throwable> { call, cause ->
             logger.error("Internal error", cause)
@@ -93,19 +113,19 @@ fun Application.installStatusPages() =
         }
     }
 
-fun Application.installRouting(routes: Routes) = install(Routing) { routes() }
+fun KtorApplication.installRouting(routes: Routes) = install(Routing) { routes() }
 
-fun Application.installCallLogging() =
+fun KtorApplication.installCallLogging() =
     install(CallLogging) {
         filter { call -> call.request.path() != "/metrics" }
     }
 
-fun Application.installTracing(tracing: Tracing) =
+fun KtorApplication.installTracing(tracing: Tracing) =
     install(ZipkinServerTracing) {
         this.tracing = tracing
     }
 
-fun Application.installMetrics() {
+fun KtorApplication.installMetrics() {
     val prometheusMeterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
     install(MicrometerMetrics) {
         registry = prometheusMeterRegistry
@@ -115,18 +135,6 @@ fun Application.installMetrics() {
             call.respondText(prometheusMeterRegistry.scrape())
         }
     }
-}
-
-data class ApplicationContext(
-    val dataSource: DataSource,
-    val ktorServer: ApplicationEngine
-)
-
-suspend fun ApplicationContext.run() {
-    migrate(dataSource)
-    ktorServer.start(wait = false)
-    logger.info("Application started")
-    awaitCancellation()
 }
 
 fun migrate(dataSource: DataSource) {
@@ -146,10 +154,12 @@ fun cancelOnShutdown(block: suspend CoroutineScope.() -> Unit): Unit = runBlocki
     })
 }
 
-fun env(): Env = Env(
-    port = 80,
-    databaseUrl = System.getenv("DATABASE_URL"),
-    databaseUsername = System.getenv("DATABASE_USERNAME"),
-    databasePassword = System.getenv("DATABASE_PASSWORD"),
-    zipkinServerUrl = System.getenv("ZIPKIN_SERVER_URL")
+fun properties(): ApplicationProperties = ApplicationProperties(
+    KtorProperties(port = 80),
+    DataSourceProperties(
+        url = System.getenv("DATABASE_URL"),
+        username = System.getenv("DATABASE_USERNAME"),
+        password = System.getenv("DATABASE_PASSWORD")
+    ),
+    TracingProperties(zipkinServerUrl = System.getenv("ZIPKIN_SERVER_URL"))
 )

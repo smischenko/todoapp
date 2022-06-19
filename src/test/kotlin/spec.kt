@@ -133,18 +133,20 @@ class TestEnvironment {
 
     val wireMock = WireMock(wireMockContainer.host, wireMockContainer.port)
 
-    private val env = Env(
-        port = availablePort(),
-        databaseUrl = postgres.jdbcUrl,
-        databaseUsername = "postgres",
-        databasePassword = "postgres",
-        zipkinServerUrl = "${wireMockContainer.url}/zipkin"
+    private val applicationProperties = ApplicationProperties(
+        KtorProperties(port = availablePort()),
+        DataSourceProperties(
+            url = postgres.jdbcUrl,
+            username = "postgres",
+            password = "postgres",
+        ),
+        TracingProperties(zipkinServerUrl = "${wireMockContainer.url}/zipkin")
     )
 
-    val applicationUrl = "http://localhost:${env.port}"
+    val applicationUrl = "http://localhost:${applicationProperties.ktorProperties.port}"
 
     @OptIn(DelicateCoroutinesApi::class)
-    private val applicationJob = GlobalScope.launch { applicationContext(env).use { it.run() } }
+    private val applicationJob = GlobalScope.launch { application(applicationProperties).run() }
 
     val client = HttpClient(CIO) {
         expectSuccess = false

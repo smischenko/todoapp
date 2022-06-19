@@ -31,8 +31,8 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
-fun tracing(env: Env): Resource<Tracing> = resource {
-    val spanSender = spanSender(env).bind()
+fun tracing(properties: TracingProperties): Resource<Tracing> = resource {
+    val spanSender = spanSender(properties.zipkinServerUrl).bind()
     val spanHandler = spanHandler(spanSender).bind()
     Tracing.newBuilder()
         .localServiceName("todoapp")
@@ -40,8 +40,8 @@ fun tracing(env: Env): Resource<Tracing> = resource {
         .build()
 } release { it.close() }
 
-fun spanSender(env: Env): Resource<Sender> = resource {
-    URLConnectionSender.create("${env.zipkinServerUrl}/api/v2/spans")
+fun spanSender(zipkinServerUrl: String): Resource<Sender> = resource {
+    URLConnectionSender.create("${zipkinServerUrl}/api/v2/spans")
 } release { it.close() }
 
 fun spanHandler(spanSender: Sender): Resource<SpanHandler> = resource {
