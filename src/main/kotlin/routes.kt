@@ -36,11 +36,11 @@ data class Routes(
     val todoDeleteRoute: Route.() -> Unit,
 )
 
-fun Routing.install(routes: Routes) {
-    routes.todoCreateRoute(this)
-    routes.todoReadRoute(this)
-    routes.todoUpdateRoute(this)
-    routes.todoDeleteRoute(this)
+fun Routing.install(routes: Routes) = with(routes) {
+    todoCreateRoute()
+    todoReadRoute()
+    todoUpdateRoute()
+    todoDeleteRoute()
 }
 
 fun routes(dataSource: DataSource) =
@@ -180,12 +180,11 @@ suspend inline fun ApplicationCallContext.processApiCall(crossinline block: susp
 suspend inline fun <reified T : Any> ApplicationCall.receiveCatching(): Either<ApiError, T> =
     Either.catch { receive<T>() }.mapLeft { ApiError.BadRequest(it.message ?: "Can not receive request") }
 
-suspend fun ApplicationCall.respondError(error: ApiError) {
+suspend fun ApplicationCall.respondError(error: ApiError): Unit =
     when (error) {
         is ApiError.BadRequest -> respond(BadRequest, mapOf("message" to error.message))
         is ApiError.TodoNotFound -> respond(NotFound)
     }
-}
 
 sealed class ApiError {
     data class BadRequest(val message: String) : ApiError()
