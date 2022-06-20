@@ -47,7 +47,7 @@ fun main() = cancelOnShutdown {
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
     val lifecycle = lifecycle().bind()
     val dataSource = dataSource(properties.dataSourceProperties).bind()
-    val routes = Routes(dataSource)
+    val routes = routes(dataSource)
     val tracing = tracing(properties.tracingProperties).bind()
     val ktorServer = ktorServer(properties.ktorProperties, routes, tracing).bind()
     suspend {
@@ -92,7 +92,7 @@ fun KtorApplication.installStatusPages() =
         }
     }
 
-fun KtorApplication.installRouting(routes: Routes) = install(Routing) { routes() }
+fun KtorApplication.installRouting(routes: Routes) = install(Routing) { install(routes) }
 
 fun KtorApplication.installCallLogging() =
     install(CallLogging) {
