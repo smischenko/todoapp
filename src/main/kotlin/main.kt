@@ -92,7 +92,7 @@ fun KtorApplication.installStatusPages() =
         }
     }
 
-fun KtorApplication.installRouting(routes: Routes) = install(Routing) { install(routes) }
+fun KtorApplication.installRouting(routes: Routes) = install(Routing) { routes() }
 
 fun KtorApplication.installCallLogging() =
     install(CallLogging) {

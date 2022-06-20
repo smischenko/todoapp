@@ -36,7 +36,8 @@ data class Routes(
     val todoDeleteRoute: Route.() -> Unit,
 )
 
-fun Routing.install(routes: Routes) = with(routes) {
+context(Routing)
+operator fun Routes.invoke() = with(this@Routing) {
     todoCreateRoute()
     todoReadRoute()
     todoUpdateRoute()
