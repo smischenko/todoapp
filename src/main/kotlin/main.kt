@@ -44,31 +44,8 @@ fun main() = cancelOnShutdown {
     application(properties()).run()
 }
 
-suspend fun Resource<Application>.run() = use { it() }
-
-typealias Application = suspend () -> Unit
-
-typealias KtorApplication = io.ktor.server.application.Application
-
-data class ApplicationProperties(
-    val ktorProperties: KtorProperties,
-    val dataSourceProperties: DataSourceProperties,
-    val tracingProperties: TracingProperties
-)
-
-data class KtorProperties(val port: Int)
-
-data class DataSourceProperties(
-    val url: String,
-    val username: String,
-    val password: String
-)
-
-data class TracingProperties(
-    val zipkinServerUrl: String
-)
-
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
+    val lifecycle = lifecycle().bind()
     val dataSource = dataSource(properties.dataSourceProperties).bind()
     val routes = Routes(dataSource)
     val tracing = tracing(properties.tracingProperties).bind()
@@ -76,10 +53,12 @@ fun application(properties: ApplicationProperties): Resource<Application> = reso
     suspend {
         migrate(dataSource)
         ktorServer.start(wait = false)
-        logger.info("Application started")
+        lifecycle.started()
         awaitCancellation()
     }
-} release { logger.info("Application stopped") }
+}
+
+fun lifecycle(): Resource<Lifecycle> = resource { Lifecycle() }.release { it.stopped() }
 
 fun dataSource(properties: DataSourceProperties): Resource<DataSource> = resource {
     HikariDataSource(
@@ -154,6 +133,8 @@ fun cancelOnShutdown(block: suspend CoroutineScope.() -> Unit): Unit = runBlocki
     })
 }
 
+suspend fun Resource<Application>.run() = use { it() }
+
 fun properties(): ApplicationProperties = ApplicationProperties(
     KtorProperties(port = 80),
     DataSourceProperties(
@@ -163,3 +144,37 @@ fun properties(): ApplicationProperties = ApplicationProperties(
     ),
     TracingProperties(zipkinServerUrl = System.getenv("ZIPKIN_SERVER_URL"))
 )
+
+data class ApplicationProperties(
+    val ktorProperties: KtorProperties,
+    val dataSourceProperties: DataSourceProperties,
+    val tracingProperties: TracingProperties
+)
+
+data class KtorProperties(val port: Int)
+
+data class DataSourceProperties(
+    val url: String,
+    val username: String,
+    val password: String
+)
+
+data class TracingProperties(
+    val zipkinServerUrl: String
+)
+
+class Lifecycle {
+    init {
+        logger.info("Application init")
+    }
+    fun started() {
+        logger.info("Application started")
+    }
+    fun stopped() {
+        logger.info("Application stopped")
+    }
+}
+
+typealias Application = suspend () -> Unit
+
+typealias KtorApplication = io.ktor.server.application.Application
