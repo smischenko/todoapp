@@ -45,20 +45,19 @@ fun main() = cancelOnShutdown {
 }
 
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
-    val lifecycle = lifecycle().bind()
+    logger.info("Application creating...")
     val dataSource = dataSource(properties.dataSourceProperties).bind()
     val routes = routes(dataSource)
     val tracing = tracing(properties.tracingProperties).bind()
     val ktorServer = ktorServer(properties.ktorProperties, routes, tracing).bind()
     suspend {
+        logger.info("Application start...")
         migrate(dataSource)
         ktorServer.start(wait = false)
-        lifecycle.started()
+        logger.info("Application started")
         awaitCancellation()
     }
-}
-
-fun lifecycle(): Resource<Lifecycle> = resource { Lifecycle() }.release { it.stopped() }
+} afterRelease { logger.info("Application stopped") }
 
 fun dataSource(properties: DataSourceProperties): Resource<DataSource> = resource {
     HikariDataSource(
@@ -71,7 +70,11 @@ fun dataSource(properties: DataSourceProperties): Resource<DataSource> = resourc
     )
 } release { it.close() }
 
-fun ktorServer(properties: KtorProperties, routes: Routes, tracing: Tracing): Resource<ApplicationEngine> = resource {
+fun ktorServer(
+    properties: KtorProperties,
+    routes: Routes,
+    tracing: Tracing
+): Resource<ApplicationEngine> = resource {
     embeddedServer(Netty, port = properties.port) {
         installContentNegotiation()
         installStatusPages()
@@ -163,18 +166,11 @@ data class TracingProperties(
     val zipkinServerUrl: String
 )
 
-class Lifecycle {
-    init {
-        logger.info("Application init")
-    }
-    fun started() {
-        logger.info("Application started")
-    }
-    fun stopped() {
-        logger.info("Application stopped")
-    }
-}
-
 typealias Application = suspend () -> Unit
 
 typealias KtorApplication = io.ktor.server.application.Application
+
+infix fun <A> Resource<A>.afterRelease(block: () -> Unit): Resource<A> = resource {
+    Resource({ }, { _, _ -> block() }).bind()
+    bind()
+}

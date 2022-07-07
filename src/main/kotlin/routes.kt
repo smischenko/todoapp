@@ -29,23 +29,15 @@ import java.sql.Connection.TRANSACTION_REPEATABLE_READ
 import java.sql.Connection.TRANSACTION_SERIALIZABLE
 import javax.sql.DataSource
 
-data class Routes(
-    val todoCreateRoute: Route.() -> Unit,
-    val todoReadRoute: Route.() -> Unit,
-    val todoUpdateRoute: Route.() -> Unit,
-    val todoDeleteRoute: Route.() -> Unit,
-)
+typealias Routes = List<Route.() -> Unit>
 
 context(Routing)
 operator fun Routes.invoke() = with(this@Routing) {
-    todoCreateRoute()
-    todoReadRoute()
-    todoUpdateRoute()
-    todoDeleteRoute()
+    forEach { it() }
 }
 
-fun routes(dataSource: DataSource) =
-    Routes(
+fun routes(dataSource: DataSource): Routes =
+    listOf(
         todoCreateRoute(todoCreate(dataSource)),
         todoReadRoute(todoRead(dataSource)),
         todoUpdateRoute(todoUpdate(dataSource)),
