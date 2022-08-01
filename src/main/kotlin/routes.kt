@@ -1,6 +1,7 @@
 package todoapp
 
 import arrow.core.Either
+import arrow.core.continuations.Effect
 import arrow.core.continuations.EffectScope
 import arrow.core.continuations.effect
 import arrow.core.left
@@ -19,10 +20,12 @@ import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
-import io.ktor.util.pipeline.PipelineContext
+import io.ktor.util.pipeline.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import todoapp.Error.RequestReceiveError
+import todoapp.Error.TodoNotFound
 import todoapp.jooq.tables.records.TodoRecord
 import todoapp.jooq.tables.references.TODO
 import java.sql.Connection.TRANSACTION_REPEATABLE_READ
@@ -46,7 +49,7 @@ fun routes(dataSource: DataSource): Routes =
 
 fun todoCreateRoute(todoCreate: suspend (TodoCreate) -> Todo): Route.() -> Unit = {
     post("/todo") {
-        processApiCall {
+        withErrorHandling {
             val request = call.receiveCatching<TodoCreateRequest>().bind()
             val todo = todoCreate(request.todo)
             call.respond(Created, TodoCreateResponse(todo))
@@ -56,17 +59,15 @@ fun todoCreateRoute(todoCreate: suspend (TodoCreate) -> Todo): Route.() -> Unit 
 
 fun todoReadRoute(todoRead: suspend () -> List<Todo>): Route.() -> Unit = {
     get("/todo") {
-        processApiCall {
-            val todo = todoRead()
-            call.respond(OK, TodoReadResponse(todo))
-        }
+        val todo = todoRead()
+        call.respond(OK, TodoReadResponse(todo))
     }
 }
 
-fun todoUpdateRoute(todoUpdate: suspend (Int, TodoUpdate) -> Either<ApiError, Todo>): Route.() -> Unit = {
+fun todoUpdateRoute(todoUpdate: suspend (Int, TodoUpdate) -> Either<Error, Todo>): Route.() -> Unit = {
     put("/todo/{id}") {
-        processApiCall {
-            val id = call.parameters["id"]?.toIntOrNull() ?: shift(ApiError.TodoNotFound)
+        withErrorHandling {
+            val id: Int = call.parameters["id"]?.toIntOrNull() ?: shift(TodoNotFound)
             val request = call.receiveCatching<TodoUpdateRequest>().bind()
             val todo = todoUpdate(id, request.todo).bind()
             call.respond(OK, TodoUpdateResponse(todo))
@@ -76,10 +77,8 @@ fun todoUpdateRoute(todoUpdate: suspend (Int, TodoUpdate) -> Either<ApiError, To
 
 fun todoDeleteRoute(todoDelete: suspend (Int) -> Unit): Route.() -> Unit = {
     delete("/todo/{id}") {
-        processApiCall {
-            call.parameters["id"]?.toIntOrNull()?.let { id -> todoDelete(id) }
-            call.respond(OK)
-        }
+        call.parameters["id"]?.toIntOrNull()?.let { id -> todoDelete(id) }
+        call.respond(OK)
     }
 }
 
@@ -108,7 +107,7 @@ fun todoRead(dataSource: DataSource): suspend () -> List<Todo> =
         }
     }
 
-fun todoUpdate(dataSource: DataSource): suspend (Int, TodoUpdate) -> Either<ApiError.TodoNotFound, Todo> =
+fun todoUpdate(dataSource: DataSource): suspend (Int, TodoUpdate) -> Either<TodoNotFound, Todo> =
     { id, todoUpdate ->
         withContext(IO) {
             dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
@@ -117,7 +116,7 @@ fun todoUpdate(dataSource: DataSource): suspend (Int, TodoUpdate) -> Either<ApiE
                     todoUpdate.done?.let { record.done = it }
                     record.store()
                     record.toTodo().right()
-                } ?: ApiError.TodoNotFound.left()
+                } ?: TodoNotFound.left()
             }
         }
     }
@@ -167,21 +166,21 @@ data class TodoUpdateResponse(val todo: Todo)
 
 private fun TodoRecord.toTodo() = Todo(id!!, text!!, done!!, index!!)
 
-suspend inline fun ApplicationCallContext.processApiCall(noinline block: suspend EffectScope<ApiError>.() -> Unit): Unit =
-    effect(block).fold({ call.respondError(it) }, { })
+suspend inline fun <reified T : Any> ApplicationCall.receiveCatching(): Either<RequestReceiveError, T> =
+    Either.catch { receive<T>() }.mapLeft { RequestReceiveError(it.message ?: "Can not receive request") }
 
-suspend inline fun <reified T : Any> ApplicationCall.receiveCatching(): Either<ApiError, T> =
-    Either.catch { receive<T>() }.mapLeft { ApiError.BadRequest(it.message ?: "Can not receive request") }
-
-suspend fun ApplicationCall.respondError(error: ApiError): Unit =
+suspend fun ApplicationCall.respondError(error: Error): Unit =
     when (error) {
-        is ApiError.BadRequest -> respond(BadRequest, mapOf("message" to error.message))
-        is ApiError.TodoNotFound -> respond(NotFound)
+        is RequestReceiveError -> respond(BadRequest, mapOf("message" to error.message))
+        is TodoNotFound -> respond(NotFound)
     }
 
-sealed class ApiError {
-    data class BadRequest(val message: String) : ApiError()
-    object TodoNotFound : ApiError()
+sealed class Error {
+    data class RequestReceiveError(val message: String): Error()
+    object TodoNotFound : Error()
 }
 
-typealias ApplicationCallContext = PipelineContext<Unit, ApplicationCall>
+suspend inline fun PipelineContext<Unit, ApplicationCall>.withErrorHandling(noinline block: suspend EffectScope<Error>.() -> Unit): Unit =
+    effect(block).handleError { call.respondError(it) }.run()
+
+suspend fun Effect<Nothing, Unit>.run(): Unit = fold({}, {})
