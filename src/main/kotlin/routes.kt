@@ -167,7 +167,7 @@ data class TodoUpdateResponse(val todo: Todo)
 
 private fun TodoRecord.toTodo() = Todo(id!!, text!!, done!!, index!!)
 
-suspend inline fun ApplicationCallContext.processApiCall(crossinline block: suspend EffectScope<ApiError>.() -> Unit): Unit =
+suspend inline fun ApplicationCallContext.processApiCall(noinline block: suspend EffectScope<ApiError>.() -> Unit): Unit =
     effect(block).fold({ call.respondError(it) }, { })
 
 suspend inline fun <reified T : Any> ApplicationCall.receiveCatching(): Either<ApiError, T> =
