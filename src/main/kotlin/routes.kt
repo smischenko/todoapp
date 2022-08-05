@@ -85,40 +85,34 @@ fun todoDeleteRoute(todoDelete: suspend (Int) -> Unit): Route.() -> Unit = {
 
 fun todoCreate(dataSource: DataSource): suspend (TodoCreate) -> Todo =
     { todoCreate ->
-        withContext(IO) {
-            dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
-                val todoCount = selectTodoCount()
-                val entity = TodoEntity(
-                    id = 0, // set 0 as id is a trick to not break nonnullable id declaration
-                    text = todoCreate.text.trim(),
-                    done = false,
-                    index = todoCount
-                )
-                val id = insertTodo(entity)
-                entity.copy(id = id).toTodo()
-            }
+        dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
+            val todoCount = selectTodoCount()
+            val entity = TodoEntity(
+                id = 0, // set 0 as id is a trick to not break nonnullable id declaration
+                text = todoCreate.text.trim(),
+                done = false,
+                index = todoCount
+            )
+            val id = insertTodo(entity)
+            entity.copy(id = id).toTodo()
         }
     }
 
 fun todoRead(dataSource: DataSource): suspend () -> List<Todo> =
     {
-        withContext(IO) {
-            dataSource.transactional(transactionIsolation = TRANSACTION_REPEATABLE_READ, readOnly = true) {
-                selectAllTodo().sortedBy { it.index }.map { it.toTodo() }
-            }
+        dataSource.transactional(transactionIsolation = TRANSACTION_REPEATABLE_READ, readOnly = true) {
+            selectAllTodo().sortedBy { it.index }.map { it.toTodo() }
         }
     }
 
 fun todoUpdate(dataSource: DataSource): suspend (Int, TodoUpdate) -> Either<TodoNotFound, Todo> =
     { id, todoUpdate ->
-        withContext(IO) {
-            dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
-                selectTodo(id)?.let { entity ->
-                    val updated = entity.apply(todoUpdate)
-                    updateTodo(updated)
-                    updated.toTodo().right()
-                } ?: TodoNotFound.left()
-            }
+        dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
+            selectTodo(id)?.let { entity ->
+                val updated = entity.apply(todoUpdate)
+                updateTodo(updated)
+                updated.toTodo().right()
+            } ?: TodoNotFound.left()
         }
     }
 
@@ -131,14 +125,12 @@ fun TodoEntity.apply(todoUpdate: TodoUpdate): TodoEntity {
 
 fun todoDelete(dataSource: DataSource): suspend (Int) -> Unit =
     { id ->
-        withContext(IO) {
-            dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
-                selectTodo(id)?.let { entity ->
-                    deleteTodo(id)
-                    val tail = selectAllTodo().filter { it.index > entity.index }
-                    val tailUpdated = tail.map { it.copy(index = it.index - 1) }
-                    updateTodo(tailUpdated)
-                }
+        dataSource.transactional(transactionIsolation = TRANSACTION_SERIALIZABLE) {
+            selectTodo(id)?.let { entity ->
+                deleteTodo(id)
+                val tail = selectAllTodo().filter { it.index > entity.index }
+                val tailUpdated = tail.map { it.copy(index = it.index - 1) }
+                updateTodo(tailUpdated)
             }
         }
     }
@@ -150,37 +142,33 @@ data class TodoEntity(
     val index: Int
 )
 
-fun Connection.selectTodoCount(): Int =
+suspend fun Connection.selectTodoCount(): Int = withContext(IO) {
     jooq.selectCount().from(TODO).fetchSingle().value1()
+}
 
-fun Connection.selectAllTodo(): List<TodoEntity> =
+suspend fun Connection.selectAllTodo(): List<TodoEntity> = withContext(IO) {
     jooq.select()
         .from(TODO)
         .fetch(Record::toTodoEntity)
+}
 
-fun Connection.selectTodo(id: Int): TodoEntity? =
+suspend fun Connection.selectTodo(id: Int): TodoEntity? = withContext(IO) {
     jooq.select()
         .from(TODO)
         .where(TODO.ID.eq(id))
         .fetchOne(Record::toTodoEntity)
+}
 
-fun Record.toTodoEntity() =
-    TodoEntity(
-        id = this[TODO.ID]!!,
-        text = this[TODO.TEXT]!!,
-        done = this[TODO.DONE]!!,
-        index = this[TODO.INDEX]!!
-    )
-
-fun Connection.insertTodo(entity: TodoEntity): Int =
+suspend fun Connection.insertTodo(entity: TodoEntity): Int = withContext(IO) {
     jooq.insertInto(TODO)
         .set(TODO.TEXT, entity.text)
         .set(TODO.DONE, entity.done)
         .set(TODO.INDEX, entity.index)
         .returning(TODO.ID)
         .execute()
+}
 
-fun Connection.updateTodo(entity: TodoEntity) {
+suspend fun Connection.updateTodo(entity: TodoEntity): Unit = withContext(IO) {
     jooq.update(TODO)
         .set(TODO.TEXT, entity.text)
         .set(TODO.DONE, entity.done)
@@ -189,7 +177,7 @@ fun Connection.updateTodo(entity: TodoEntity) {
         .execute()
 }
 
-fun Connection.updateTodo(entities: List<TodoEntity>) {
+suspend fun Connection.updateTodo(entities: List<TodoEntity>): Unit = withContext(IO) {
     if (entities.isNotEmpty()) {
         val batch = jooq.batch(
             jooq.update(TODO)
@@ -205,11 +193,19 @@ fun Connection.updateTodo(entities: List<TodoEntity>) {
     }
 }
 
-fun Connection.deleteTodo(id: Int) {
+suspend fun Connection.deleteTodo(id: Int): Unit = withContext(IO) {
     jooq.deleteFrom(TODO)
         .where(TODO.ID.eq(id))
         .execute()
 }
+
+private fun Record.toTodoEntity() =
+    TodoEntity(
+        id = this[TODO.ID]!!,
+        text = this[TODO.TEXT]!!,
+        done = this[TODO.DONE]!!,
+        index = this[TODO.INDEX]!!
+    )
 
 private fun TodoEntity.toTodo() = Todo(id, text, done, index)
 

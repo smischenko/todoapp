@@ -38,11 +38,11 @@ import org.slf4j.LoggerFactory
 import javax.sql.DataSource
 import kotlin.concurrent.thread
 
-val logger: Logger = LoggerFactory.getLogger("todoapp")
-
 fun main() = cancelOnShutdown {
     application(properties()).run()
 }
+
+val logger: Logger = LoggerFactory.getLogger("todoapp")
 
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
     logger.info("Application creating...")
