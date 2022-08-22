@@ -33,3 +33,5 @@ Application does not have UI. It provides REST API only.
 - `POST /todo` - create todo task
 - `PUT /todo/{id}` - update todo task
 - `DELETE /todo/{id}` - delete todo task
+
+For extended examples look at `todo.http` file.
