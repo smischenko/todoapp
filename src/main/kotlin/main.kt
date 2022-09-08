@@ -47,7 +47,10 @@ val logger: Logger = LoggerFactory.getLogger("todoapp")
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
     logger.info("Application creating...")
     val dataSource = dataSource(properties.dataSourceProperties).bind()
-    val routes = routes(dataSource)
+    val transaction = Transaction(dataSource)
+    val repository = Repository()
+    val service = Service(transaction, repository)
+    val routes = Routes(service)
     val tracing = tracing(properties.tracingProperties).bind()
     val ktorServer = ktorServer(properties.ktorProperties, routes, tracing).bind()
     suspend {
