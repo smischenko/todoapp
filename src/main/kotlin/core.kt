@@ -31,7 +31,9 @@ import todoapp.TransactionIsolation.REPEATABLE_READ
 import todoapp.TransactionIsolation.SERIALIZABLE
 import todoapp.jooq.tables.references.TODO
 
-context(Routing) operator fun Routes.invoke() = with(this@Routing) {
+fun routing(service: Service): Routing.() -> Unit = Routes(service).asRouting()
+
+fun Routes.asRouting(): Routing.() -> Unit = {
     todoCreateRoute()
     todoReadRoute()
     todoUpdateRoute()

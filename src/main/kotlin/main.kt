@@ -50,9 +50,9 @@ fun application(properties: ApplicationProperties): Resource<Application> = reso
     val transaction = Transaction(dataSource)
     val repository = Repository()
     val service = Service(transaction, repository)
-    val routes = Routes(service)
+    val routing = routing(service)
     val tracing = tracing(properties.tracingProperties).bind()
-    val ktorServer = ktorServer(properties.ktorProperties, routes, tracing).bind()
+    val ktorServer = ktorServer(properties.ktorProperties, routing, tracing).bind()
     suspend {
         logger.info("Application start...")
         migrate(dataSource)
@@ -75,13 +75,13 @@ fun dataSource(properties: DataSourceProperties): Resource<DataSource> = resourc
 
 fun ktorServer(
     properties: KtorProperties,
-    routes: Routes,
+    routing: Routing.() -> Unit,
     tracing: Tracing
 ): Resource<ApplicationEngine> = resource {
     embeddedServer(Netty, port = properties.port) {
         installContentNegotiation()
         installStatusPages()
-        installRouting(routes)
+        installRouting(routing)
         installCallLogging()
         installTracing(tracing)
         installMetrics()
@@ -98,7 +98,7 @@ fun KtorApplication.installStatusPages() =
         }
     }
 
-fun KtorApplication.installRouting(routes: Routes) = install(Routing) { routes() }
+fun KtorApplication.installRouting(routing: Routing.() -> Unit) = install(Routing) { routing() }
 
 fun KtorApplication.installCallLogging() =
     install(CallLogging) {
