@@ -35,6 +35,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.flywaydb.core.Flyway
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import todoapp.domain.todoCreateUseCase
+import todoapp.domain.todoDeleteUseCase
+import todoapp.domain.todoReadUseCase
+import todoapp.domain.todoUpdateUseCase
 import todoapp.infrastructure.*
 import javax.sql.DataSource
 import kotlin.concurrent.thread
@@ -50,12 +54,15 @@ fun application(properties: ApplicationProperties): Resource<Application> = reso
     val dataSource = dataSource(properties.dataSourceProperties).bind()
     val transaction = Transaction(dataSource)
     val repository = Repository()
-    val service = Service(transaction, repository)
+    val todoCreateUseCase = todoCreateUseCase(transaction, repository)
+    val todoReadUseCase = todoReadUseCase(transaction, repository)
+    val todoUpdateUseCase = todoUpdateUseCase(transaction, repository)
+    val todoDeleteUseCase = todoDeleteUseCase(transaction, repository)
     val routing = routing(
-        todoCreateHandler(service),
-        todoReadHandler(service),
-        todoUpdateHandler(service),
-        todoDeleteHandler(service)
+        todoCreateHandler(todoCreateUseCase),
+        todoReadHandler(todoReadUseCase),
+        todoUpdateHandler(todoUpdateUseCase),
+        todoDeleteHandler(todoDeleteUseCase)
     )
     val tracing = tracing(properties.tracingProperties).bind()
     val ktorServer = ktorServer(properties.ktorProperties, routing, tracing).bind()

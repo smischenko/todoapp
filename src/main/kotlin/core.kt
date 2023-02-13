@@ -4,81 +4,20 @@ import arrow.core.Either
 import arrow.core.continuations.Effect
 import arrow.core.continuations.EffectScope
 import arrow.core.continuations.effect
-import arrow.core.left
-import arrow.core.right
 import io.ktor.http.HttpStatusCode.Companion.BadRequest
-import io.ktor.http.HttpStatusCode.Companion.Created
 import io.ktor.http.HttpStatusCode.Companion.NotFound
-import io.ktor.http.HttpStatusCode.Companion.OK
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
-import io.ktor.server.routing.Route
-import io.ktor.server.routing.Routing
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
-import io.ktor.server.routing.post
-import io.ktor.server.routing.put
 import io.ktor.util.pipeline.*
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.Serializable
 import org.jooq.Record
 import todoapp.Error.RequestReceiveError
 import todoapp.Error.TodoNotFound
-import todoapp.TransactionIsolation.REPEATABLE_READ
-import todoapp.TransactionIsolation.SERIALIZABLE
+import todoapp.domain.Todo
 import todoapp.jooq.tables.references.TODO
-
-class Service(private val transaction: Transaction, private val repository: Repository) {
-
-    suspend fun todoCreate(todoCreate: TodoCreate): Todo =
-        transaction(isolation = SERIALIZABLE) {
-            val todoCount = repository.selectTodoCount()
-            val entity = TodoEntity(
-                id = 0, // set 0 as id is a trick to not break nonnullable id declaration
-                text = todoCreate.text.trim(),
-                done = false,
-                index = todoCount
-            )
-            val id = repository.insertTodo(entity)
-            entity.copy(id = id).toTodo()
-        }
-
-    suspend fun todoRead(): List<Todo> =
-        transaction(isolation = REPEATABLE_READ, readOnly = true) {
-            repository.selectAllTodo().sortedBy { it.index }.map { it.toTodo() }
-        }
-
-    suspend fun todoUpdate(id: Int, todoUpdate: TodoUpdate): Either<TodoNotFound, Todo> =
-        transaction(isolation = SERIALIZABLE) {
-            repository.selectTodo(id)?.let { entity ->
-                val updated = entity.apply(todoUpdate)
-                repository.updateTodo(updated)
-                updated.toTodo().right()
-            } ?: TodoNotFound.left()
-        }
-
-    private fun TodoEntity.apply(todoUpdate: TodoUpdate): TodoEntity {
-        var result = this
-        result = todoUpdate.text?.let { result.copy(text = it.trim()) } ?: result
-        result = todoUpdate.done?.let { result.copy(done = it) } ?: result
-        return result
-    }
-
-    suspend fun todoDelete(id: Int): Unit =
-        transaction(isolation = SERIALIZABLE) {
-            repository.selectTodo(id)?.let { entity ->
-                repository.deleteTodo(id)
-                val tail = repository.selectAllTodo().filter { it.index > entity.index }
-                val tailUpdated = tail.map { it.copy(index = it.index - 1) }
-                repository.updateTodo(tailUpdated)
-            }
-        }
-
-    private fun TodoEntity.toTodo() = Todo(id, text, done, index)
-}
 
 class Repository {
 
@@ -86,29 +25,30 @@ class Repository {
         jooq.selectCount().from(TODO).fetchSingle().value1()
     }
 
-    context(TransactionContext) suspend fun selectAllTodo(): List<TodoEntity> = withContext(IO) {
+    context (TransactionContext) suspend fun selectAllTodo(): List<Todo> = withContext(IO) {
         jooq.select()
             .from(TODO)
-            .fetch { it.toTodoEntity() }
+            .orderBy(TODO.INDEX)
+            .fetch { it.toTodo() }
     }
 
-    context (TransactionContext) suspend fun selectTodo(id: Int): TodoEntity? = withContext(IO) {
+    context (TransactionContext) suspend fun selectTodo(id: Int): Todo? = withContext(IO) {
         jooq.select()
             .from(TODO)
             .where(TODO.ID.eq(id))
-            .fetchOne { it.toTodoEntity() }
+            .fetchOne { it.toTodo() }
     }
 
-    context (TransactionContext) suspend fun insertTodo(entity: TodoEntity): Int = withContext(IO) {
+    context (TransactionContext) suspend fun insertTodo(todo: Todo): Int = withContext(IO) {
         jooq.insertInto(TODO)
-            .set(TODO.TEXT, entity.text)
-            .set(TODO.DONE, entity.done)
-            .set(TODO.INDEX, entity.index)
+            .set(TODO.TEXT, todo.text)
+            .set(TODO.DONE, todo.done)
+            .set(TODO.INDEX, todo.index)
             .returning(TODO.ID)
             .execute()
     }
 
-    context (TransactionContext) suspend fun updateTodo(entity: TodoEntity): Unit = withContext(IO) {
+    context (TransactionContext) suspend fun updateTodo(entity: Todo): Unit = withContext(IO) {
         jooq.update(TODO)
             .set(TODO.TEXT, entity.text)
             .set(TODO.DONE, entity.done)
@@ -117,7 +57,7 @@ class Repository {
             .execute()
     }
 
-    context (TransactionContext) suspend fun updateTodo(entities: List<TodoEntity>): Unit = withContext(IO) {
+    context (TransactionContext) suspend fun updateTodo(entities: List<Todo>): Unit = withContext(IO) {
         if (entities.isNotEmpty()) {
             val batch = jooq.batch(
                 jooq.update(TODO)
@@ -139,50 +79,14 @@ class Repository {
             .execute()
     }
 
-    private fun Record.toTodoEntity() =
-        TodoEntity(
+    private fun Record.toTodo() =
+        Todo(
             id = this[TODO.ID]!!,
             text = this[TODO.TEXT]!!,
             done = this[TODO.DONE]!!,
             index = this[TODO.INDEX]!!
         )
 }
-
-data class TodoEntity(
-    val id: Int,
-    val text: String,
-    val done: Boolean,
-    val index: Int
-)
-
-@Serializable
-data class TodoReadResponse(val todo: List<Todo>)
-
-@Serializable
-data class Todo(
-    val id: Int,
-    val text: String,
-    val done: Boolean,
-    val index: Int
-)
-
-@Serializable
-data class TodoCreateRequest(val todo: TodoCreate)
-
-@Serializable
-data class TodoCreate(val text: String)
-
-@Serializable
-data class TodoCreateResponse(val todo: Todo)
-
-@Serializable
-data class TodoUpdateRequest(val todo: TodoUpdate)
-
-@Serializable
-data class TodoUpdate(val text: String? = null, val done: Boolean? = null)
-
-@Serializable
-data class TodoUpdateResponse(val todo: Todo)
 
 suspend inline fun <reified T : Any> ApplicationCall.receiveCatching(): Either<RequestReceiveError, T> =
     Either.catch { receive<T>() }.mapLeft { RequestReceiveError(it.message ?: "Can not receive request") }
