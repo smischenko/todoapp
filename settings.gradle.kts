@@ -1,2 +1,2 @@
 rootProject.name = "todoapp"
-include("app")
+include("app", "cli")

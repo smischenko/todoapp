@@ -14,7 +14,7 @@ fun insertTodo(): InsertTodo = { todo ->
         .set(TODO.DONE, todo.done)
         .set(TODO.INDEX, todo.index)
         .returning(TODO.ID)
-        .execute()
+        .fetchSingle(TODO.ID)!!
 }
 
 fun selectAllTodo(): SelectAllTodo = {
