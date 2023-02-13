@@ -3,7 +3,6 @@ package todoapp.domain
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import todoapp.*
 
 typealias TodoUpdateUseCase = suspend (TodoUpdateRequest) -> Either<Error.TodoNotFound, Todo>
 

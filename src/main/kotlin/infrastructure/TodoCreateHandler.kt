@@ -5,7 +5,6 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.util.pipeline.*
 import kotlinx.serialization.Serializable
-import todoapp.*
 import todoapp.domain.TodoCreateUseCase
 import todoapp.domain.TodoCreateRequest as UseCaseRequest
 

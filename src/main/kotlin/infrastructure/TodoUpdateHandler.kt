@@ -5,8 +5,8 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.util.pipeline.*
 import kotlinx.serialization.Serializable
-import todoapp.*
 import todoapp.domain.TodoUpdateUseCase
+import todoapp.domain.Error
 import todoapp.domain.TodoUpdateRequest as UseCaseRequest
 
 typealias TodoUpdateHandler = PipelineInterceptor<Unit, ApplicationCall>
