@@ -13,11 +13,15 @@ data class TodoUpdateRequest(
     val done: Boolean?
 )
 
-fun todoUpdateUseCase(transaction: Transaction, repository: Repository): TodoUpdateUseCase = { request ->
-    transaction(isolation = TransactionIsolation.SERIALIZABLE) {
-        repository.selectTodo(request.id)?.let { todo ->
+fun todoUpdateUseCase(
+    database: Database,
+    selectTodo: SelectTodo,
+    updateTodo: UpdateTodo
+): TodoUpdateUseCase = { request ->
+    database.transactional(isolation = TransactionIsolation.SERIALIZABLE) {
+        selectTodo(request.id)?.let { todo ->
             val updated = todo.apply(request)
-            repository.updateTodo(updated)
+            updateTodo(updated)
             updated.right()
         } ?: Error.TodoNotFound.left()
     }

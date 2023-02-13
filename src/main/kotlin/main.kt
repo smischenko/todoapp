@@ -35,10 +35,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.flywaydb.core.Flyway
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import todoapp.domain.todoCreateUseCase
-import todoapp.domain.todoDeleteUseCase
-import todoapp.domain.todoReadUseCase
-import todoapp.domain.todoUpdateUseCase
+import todoapp.domain.*
 import todoapp.infrastructure.*
 import javax.sql.DataSource
 import kotlin.concurrent.thread
@@ -52,12 +49,22 @@ val logger: Logger = LoggerFactory.getLogger("todoapp")
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
     logger.info("Application creating...")
     val dataSource = dataSource(properties.dataSourceProperties).bind()
-    val transaction = Transaction(dataSource)
-    val repository = Repository()
-    val todoCreateUseCase = todoCreateUseCase(transaction, repository)
-    val todoReadUseCase = todoReadUseCase(transaction, repository)
-    val todoUpdateUseCase = todoUpdateUseCase(transaction, repository)
-    val todoDeleteUseCase = todoDeleteUseCase(transaction, repository)
+    val database = database(dataSource)
+    val insertTodo = insertTodo()
+    val selectTodoCount = selectTodoCount()
+    val selectTodo = selectTodo()
+    val selectAllTodo = selectAllTodo()
+    val updateTodo = updateTodo()
+    val updateTodoList = updateTodoList()
+    val deleteTodo = deleteTodo()
+    val todoCreateUseCase = todoCreateUseCase(
+        database,
+        selectTodoCount,
+        insertTodo
+    )
+    val todoReadUseCase = todoReadUseCase(database, selectAllTodo)
+    val todoUpdateUseCase = todoUpdateUseCase(database, selectTodo, updateTodo)
+    val todoDeleteUseCase = todoDeleteUseCase(database, selectTodo, deleteTodo, selectAllTodo, updateTodoList)
     val routing = routing(
         todoCreateHandler(todoCreateUseCase),
         todoReadHandler(todoReadUseCase),
