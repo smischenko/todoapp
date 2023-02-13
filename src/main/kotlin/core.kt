@@ -31,53 +31,6 @@ import todoapp.TransactionIsolation.REPEATABLE_READ
 import todoapp.TransactionIsolation.SERIALIZABLE
 import todoapp.jooq.tables.references.TODO
 
-fun routing(service: Service): Routing.() -> Unit = Routes(service).asRouting()
-
-fun Routes.asRouting(): Routing.() -> Unit = {
-    todoCreateRoute()
-    todoReadRoute()
-    todoUpdateRoute()
-    todoDeleteRoute()
-}
-
-class Routes(private val service: Service) {
-
-    fun Route.todoCreateRoute() {
-        post("/todo") {
-            withErrorHandling {
-                val request = call.receiveCatching<TodoCreateRequest>().bind()
-                val todo = service.todoCreate(request.todo)
-                call.respond(Created, TodoCreateResponse(todo))
-            }
-        }
-    }
-
-    fun Route.todoReadRoute() {
-        get("/todo") {
-            val todo = service.todoRead()
-            call.respond(OK, TodoReadResponse(todo))
-        }
-    }
-
-    fun Route.todoUpdateRoute() {
-        put("/todo/{id}") {
-            withErrorHandling {
-                val id: Int = call.parameters["id"]?.toIntOrNull() ?: shift(TodoNotFound)
-                val request = call.receiveCatching<TodoUpdateRequest>().bind()
-                val todo = service.todoUpdate(id, request.todo).bind()
-                call.respond(OK, TodoUpdateResponse(todo))
-            }
-        }
-    }
-
-    fun Route.todoDeleteRoute() {
-        delete("/todo/{id}") {
-            call.parameters["id"]?.toIntOrNull()?.let { id -> service.todoDelete(id) }
-            call.respond(OK)
-        }
-    }
-}
-
 class Service(private val transaction: Transaction, private val repository: Repository) {
 
     suspend fun todoCreate(todoCreate: TodoCreate): Todo =

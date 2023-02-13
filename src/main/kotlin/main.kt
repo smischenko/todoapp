@@ -35,6 +35,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.flywaydb.core.Flyway
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import todoapp.infrastructure.*
 import javax.sql.DataSource
 import kotlin.concurrent.thread
 
@@ -50,7 +51,12 @@ fun application(properties: ApplicationProperties): Resource<Application> = reso
     val transaction = Transaction(dataSource)
     val repository = Repository()
     val service = Service(transaction, repository)
-    val routing = routing(service)
+    val routing = routing(
+        todoCreateHandler(service),
+        todoReadHandler(service),
+        todoUpdateHandler(service),
+        todoDeleteHandler(service)
+    )
     val tracing = tracing(properties.tracingProperties).bind()
     val ktorServer = ktorServer(properties.ktorProperties, routing, tracing).bind()
     suspend {
@@ -98,7 +104,9 @@ fun KtorApplication.installStatusPages() =
         }
     }
 
-fun KtorApplication.installRouting(routing: Routing.() -> Unit) = install(Routing) { routing() }
+fun KtorApplication.installRouting(routing: Routing.() -> Unit) = install(Routing) {
+    routing()
+}
 
 fun KtorApplication.installCallLogging() =
     install(CallLogging) {
