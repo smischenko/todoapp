@@ -1,4 +1,4 @@
-package todoapp
+package todoapp.infrastructure
 
 import arrow.fx.coroutines.Resource
 import arrow.fx.coroutines.continuations.resource
@@ -39,6 +39,10 @@ fun tracing(properties: TracingProperties): Resource<Tracing> = resource {
         .addSpanHandler(spanHandler)
         .build()
 } release { it.close() }
+
+data class TracingProperties(
+    val zipkinServerUrl: String
+)
 
 fun spanSender(zipkinServerUrl: String): Resource<Sender> = resource {
     URLConnectionSender.create("${zipkinServerUrl}/api/v2/spans")

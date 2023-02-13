@@ -29,6 +29,7 @@ import org.jooq.impl.DSL
 import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
+import todoapp.infrastructure.TracingProperties
 import todoapp.jooq.tables.references.TODO
 import java.net.ServerSocket
 import java.nio.charset.StandardCharsets.UTF_8

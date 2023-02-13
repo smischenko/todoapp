@@ -187,10 +187,6 @@ data class DataSourceProperties(
     val password: String
 )
 
-data class TracingProperties(
-    val zipkinServerUrl: String
-)
-
 typealias Application = suspend () -> Unit
 
 typealias KtorApplication = io.ktor.server.application.Application
