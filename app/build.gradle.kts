@@ -97,7 +97,7 @@ tasks.register("jooq-codegen") {
 
         Flyway.configure()
             .dataSource(db.jdbcUrl, "postgres", "postgres")
-            .locations("filesystem:src/main/resources/db/migration")
+            .locations("filesystem:$projectDir/src/main/resources/db/migration")
             .load()
             .migrate()
 
