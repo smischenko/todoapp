@@ -9,17 +9,17 @@ import org.jooq.meta.jaxb.Jdbc
 import org.jooq.meta.jaxb.Strategy
 import org.jooq.meta.jaxb.Target
 
-val kotlin_version: String by project
-val ktor_version: String by project
-val logback_version: String by project
-val arrow_version: String by project
-val postgres_version: String by project
-val hikari_version: String by project
-val flyway_version: String by project
-val jooq_version: String by project
-val micrometer_version: String by project
-val kotest_version: String by project
-val testcontainers_version: String by project
+val kotlin_version = "1.7.0"
+val ktor_version = "2.0.2"
+val logback_version = "1.2.11"
+val arrow_version = "1.1.3-alpha.37"
+val postgres_version = "42.3.6"
+val hikari_version = "5.0.1"
+val flyway_version = "8.5.12"
+val jooq_version = "3.16.6"
+val micrometer_version = "1.9.0"
+val kotest_version = "5.3.1"
+val testcontainers_version = "1.17.2"
 
 plugins {
     application
