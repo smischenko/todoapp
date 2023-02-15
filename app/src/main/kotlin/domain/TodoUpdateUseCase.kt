@@ -4,7 +4,7 @@ import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
 
-typealias TodoUpdateUseCase = suspend (TodoUpdateRequest) -> Either<Error.TodoNotFound, Todo>
+typealias TodoUpdateUseCase = suspend (TodoUpdateRequest) -> Either<DomainError.TodoNotFound, Todo>
 
 data class TodoUpdateRequest(
     val id: Int,
@@ -22,7 +22,7 @@ fun todoUpdateUseCase(
             val updated = todo.apply(request)
             updateTodo(updated)
             updated.right()
-        } ?: Error.TodoNotFound.left()
+        } ?: DomainError.TodoNotFound.left()
     }
 }
 
