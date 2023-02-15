@@ -6,7 +6,7 @@ COPY ./gradlew ./gradlew
 COPY ./settings.gradle.kts ./settings.gradle.kts
 COPY ./app/build.gradle.kts ./app/build.gradle.kts
 COPY ./app/src ./app/src
-RUN ./gradlew :app:build :app:installDist
+RUN ./gradlew :app:installDist
 
 FROM openjdk:17-alpine as app
 COPY --from=build /project/app/build/install/app app
