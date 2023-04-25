@@ -15,6 +15,7 @@ fun todoCreateHandler(todoCreateUseCase: TodoCreateUseCase): TodoCreateHandler =
     effect {
         val request = call.receiveCatching<TodoCreateRequest>().bind()
         val todo = todoCreateUseCase(UseCaseRequest(request.todo.text))
+            .mapLeft { it.toHttpError() }.bind()
         call.respond(HttpStatusCode.Created, TodoCreateResponse(todo.toView()))
     }.handleError { call.respondError(it) }.run()
 }

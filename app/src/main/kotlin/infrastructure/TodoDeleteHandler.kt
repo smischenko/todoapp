@@ -1,5 +1,6 @@
 package todoapp.infrastructure
 
+import arrow.core.continuations.effect
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -10,8 +11,10 @@ import todoapp.domain.TodoDeleteUseCase
 typealias TodoDeleteHandler = PipelineInterceptor<Unit, ApplicationCall>
 
 fun todoDeleteHandler(todoDeleteUseCase: TodoDeleteUseCase): TodoDeleteHandler = {
-    call.parameters["id"]?.toIntOrNull()?.let { id ->
-        todoDeleteUseCase(TodoDeleteRequest(id))
-    }
-    call.respond(HttpStatusCode.OK)
+    effect {
+        call.parameters["id"]?.toIntOrNull()?.let { id ->
+            todoDeleteUseCase(TodoDeleteRequest(id)).mapLeft { it.toHttpError() }.bind()
+        }
+        call.respond(HttpStatusCode.OK)
+    }.handleError { call.respondError(it) }.run()
 }

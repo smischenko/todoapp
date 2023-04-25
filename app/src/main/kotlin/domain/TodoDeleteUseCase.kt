@@ -1,6 +1,9 @@
 package todoapp.domain
 
-typealias TodoDeleteUseCase = suspend (TodoDeleteRequest) -> Unit
+import arrow.core.Either
+import todoapp.domain.DomainError.UnexpectedError
+
+typealias TodoDeleteUseCase = suspend (TodoDeleteRequest) -> Either<UnexpectedError, Unit>
 
 data class TodoDeleteRequest(val id: Int)
 

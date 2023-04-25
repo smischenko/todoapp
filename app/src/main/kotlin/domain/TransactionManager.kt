@@ -1,13 +1,15 @@
 package todoapp.domain
 
-// Интерфейс доступа к хранилищу aka Port Out
+import arrow.core.Either
+
+// Интерфейс транзакции aka Port Out
 
 interface TransactionManager {
     suspend fun <T> transactional(
         isolation: TransactionIsolation,
         readOnly: Boolean = false,
         block: TransactionScope.() -> T
-    ): T
+    ): Either<DomainError.UnexpectedError ,T>
 }
 
 enum class TransactionIsolation {
