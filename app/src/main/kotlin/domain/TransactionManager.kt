@@ -2,7 +2,7 @@ package todoapp.domain
 
 // Интерфейс доступа к хранилищу aka Port Out
 
-interface Database {
+interface TransactionManager {
     suspend fun <T> transactional(
         isolation: TransactionIsolation,
         readOnly: Boolean = false,

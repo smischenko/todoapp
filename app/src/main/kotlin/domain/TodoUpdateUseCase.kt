@@ -13,11 +13,11 @@ data class TodoUpdateRequest(
 )
 
 fun todoUpdateUseCase(
-    database: Database,
+    tm: TransactionManager,
     selectTodo: SelectTodo,
     updateTodo: UpdateTodo
 ): TodoUpdateUseCase = { request ->
-    database.transactional(isolation = TransactionIsolation.SERIALIZABLE) {
+    tm.transactional(isolation = TransactionIsolation.SERIALIZABLE) {
         selectTodo(request.id)?.let { todo ->
             val updated = todo.apply(request)
             updateTodo(updated)

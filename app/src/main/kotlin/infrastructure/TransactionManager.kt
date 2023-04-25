@@ -5,14 +5,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
-import todoapp.domain.Database
 import todoapp.domain.TransactionIsolation
+import todoapp.domain.TransactionManager
 import todoapp.domain.TransactionScope
 import java.sql.Connection
 import javax.sql.DataSource
 
-fun database(dataSource: DataSource): Database =
-    object : Database {
+fun transactionManager(dataSource: DataSource): TransactionManager =
+    object : TransactionManager {
         @OptIn(ExperimentalCoroutinesApi::class)
         private val connectionAcquisition = Dispatchers.IO.limitedParallelism(1)
 

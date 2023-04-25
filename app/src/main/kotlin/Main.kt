@@ -49,7 +49,7 @@ val logger: Logger = LoggerFactory.getLogger("todoapp")
 fun application(properties: ApplicationProperties): Resource<Application> = resource {
     logger.info("Application creating...")
     val dataSource = dataSource(properties.dataSourceProperties).bind()
-    val database = database(dataSource)
+    val transactionManager = transactionManager(dataSource)
     val insertTodo = insertTodo()
     val selectTodoCount = selectTodoCount()
     val selectTodo = selectTodo()
@@ -58,13 +58,13 @@ fun application(properties: ApplicationProperties): Resource<Application> = reso
     val updateTodoList = updateTodoList()
     val deleteTodo = deleteTodo()
     val todoCreateUseCase = todoCreateUseCase(
-        database,
+        transactionManager,
         selectTodoCount,
         insertTodo
     )
-    val todoReadUseCase = todoReadUseCase(database, selectAllTodo)
-    val todoUpdateUseCase = todoUpdateUseCase(database, selectTodo, updateTodo)
-    val todoDeleteUseCase = todoDeleteUseCase(database, selectTodo, deleteTodo, selectAllTodo, updateTodoList)
+    val todoReadUseCase = todoReadUseCase(transactionManager, selectAllTodo)
+    val todoUpdateUseCase = todoUpdateUseCase(transactionManager, selectTodo, updateTodo)
+    val todoDeleteUseCase = todoDeleteUseCase(transactionManager, selectTodo, deleteTodo, selectAllTodo, updateTodoList)
     val routing = routing(
         todoCreateHandler(todoCreateUseCase),
         todoReadHandler(todoReadUseCase),
