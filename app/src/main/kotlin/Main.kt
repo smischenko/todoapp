@@ -6,49 +6,42 @@ import arrow.fx.coroutines.release
 import brave.Tracing
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.server.application.call
-import io.ktor.server.application.install
-import io.ktor.server.engine.ApplicationEngine
-import io.ktor.server.engine.embeddedServer
-import io.ktor.server.metrics.micrometer.MicrometerMetrics
-import io.ktor.server.netty.Netty
-import io.ktor.server.plugins.callloging.CallLogging
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.request.path
-import io.ktor.server.response.respond
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.Routing
-import io.ktor.server.routing.get
-import io.ktor.server.routing.routing
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.server.application.*
+import io.ktor.server.engine.*
+import io.ktor.server.metrics.micrometer.*
+import io.ktor.server.netty.*
+import io.ktor.server.plugins.callloging.*
+import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.statuspages.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.micrometer.prometheus.PrometheusConfig
 import io.micrometer.prometheus.PrometheusMeterRegistry
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.*
 import org.flywaydb.core.Flyway
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import todoapp.domain.*
+import todoapp.domain.todoCreateUseCase
+import todoapp.domain.todoDeleteUseCase
+import todoapp.domain.todoReadUseCase
+import todoapp.domain.todoUpdateUseCase
 import todoapp.infrastructure.*
 import javax.sql.DataSource
 import kotlin.concurrent.thread
 
 fun main() = cancelOnShutdown {
-    application(properties()).run()
+    application(properties()).use { awaitCancellation() }
 }
 
 val logger: Logger = LoggerFactory.getLogger("todoapp")
 
-fun application(properties: ApplicationProperties): Resource<Application> = resource {
-    logger.info("Application creating...")
+fun application(properties: ApplicationProperties): Resource<Unit> = resource {
+    logger.info("Application starting with properties $properties")
     val dataSource = dataSource(properties.dataSourceProperties).bind()
+        .also { migrate(it) }
     val transactionManager = transactionManager(dataSource)
     val insertTodo = insertTodo()
     val selectTodoCount = selectTodoCount()
@@ -72,15 +65,11 @@ fun application(properties: ApplicationProperties): Resource<Application> = reso
         todoDeleteHandler(todoDeleteUseCase)
     )
     val tracing = tracing(properties.tracingProperties).bind()
-    val ktorServer = ktorServer(properties.ktorProperties, routing, tracing).bind()
-    suspend {
-        logger.info("Application start...")
-        migrate(dataSource)
-        ktorServer.start(wait = false)
-        logger.info("Application started")
-        awaitCancellation()
-    }
-} afterRelease { logger.info("Application stopped") }
+    ktorServer(properties.ktorProperties, routing, tracing).bind()
+    logger.info("Application started")
+}
+    .release { logger.info("Application stopping") }
+    .afterRelease { logger.info("Application stopped") }
 
 fun dataSource(properties: DataSourceProperties): Resource<DataSource> = resource {
     HikariDataSource(
@@ -105,7 +94,7 @@ fun ktorServer(
         installCallLogging()
         installTracing(tracing)
         installMetrics()
-    }
+    }.start()
 } release { it.stop() }
 
 fun KtorApplication.installContentNegotiation() = install(ContentNegotiation) { json() }
@@ -161,8 +150,6 @@ fun cancelOnShutdown(block: suspend CoroutineScope.() -> Unit): Unit = runBlocki
     })
 }
 
-suspend fun Resource<Application>.run() = use { it() }
-
 fun properties(): ApplicationProperties = ApplicationProperties(
     KtorProperties(port = 80),
     DataSourceProperties(
@@ -187,9 +174,7 @@ data class DataSourceProperties(
     val password: String
 )
 
-typealias Application = suspend () -> Unit
-
-typealias KtorApplication = io.ktor.server.application.Application
+typealias KtorApplication = Application
 
 infix fun <A> Resource<A>.afterRelease(block: () -> Unit): Resource<A> = resource {
     Resource({ }, { _, _ -> block() }).bind()
