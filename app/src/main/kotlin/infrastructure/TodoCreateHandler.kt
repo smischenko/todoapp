@@ -17,7 +17,7 @@ fun todoCreateHandler(todoCreateUseCase: TodoCreateUseCase): TodoCreateHandler =
         val todo = todoCreateUseCase(UseCaseRequest(request.todo.text))
             .mapLeft { it.toHttpError() }.bind()
         call.respond(HttpStatusCode.Created, TodoCreateResponse(todo.toView()))
-    }.handleError { call.respondError(it) }.run()
+    }.handleError { call.respondError(it) }.fold()
 }
 
 @Serializable

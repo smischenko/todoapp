@@ -13,4 +13,4 @@ suspend inline fun <reified T : Any> ApplicationCall.receiveCatching(): Either<H
 suspend fun ApplicationCall.respondError(error: HttpError): Unit =
     respond(error.statusCode, error.message)
 
-suspend fun Effect<Nothing, Unit>.run(): Unit = fold({}, {})
+suspend fun Effect<Nothing, Unit>.fold(): Unit = fold({}, {})

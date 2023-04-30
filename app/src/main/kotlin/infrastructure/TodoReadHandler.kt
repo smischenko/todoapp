@@ -14,7 +14,7 @@ fun todoReadHandler(todoReadUseCase: TodoReadUseCase): TodoReadHandler = {
     effect {
         val todoList = todoReadUseCase().mapLeft { it.toHttpError() }.bind()
         call.respond(HttpStatusCode.OK, TodoReadResponse(todoList.map { it.toView() }))
-    }.handleError { call.respondError(it) }.run()
+    }.handleError { call.respondError(it) }.fold()
 }
 
 @Serializable

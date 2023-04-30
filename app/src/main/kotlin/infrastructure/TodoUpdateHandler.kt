@@ -19,7 +19,7 @@ fun todoUpdateHandler(todoUpdateUseCase: TodoUpdateUseCase): TodoUpdateHandler =
         val todo = todoUpdateUseCase(UseCaseRequest(id, request.todo.text, request.todo.done))
             .mapLeft { it.toHttpError() }.bind()
         call.respond(HttpStatusCode.OK, TodoUpdateResponse(todo.toView()))
-    }.handleError { call.respondError(it) }.run()
+    }.handleError { call.respondError(it) }.fold()
 }
 
 @Serializable
