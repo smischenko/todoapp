@@ -16,5 +16,5 @@ fun todoDeleteHandler(todoDeleteUseCase: TodoDeleteUseCase): TodoDeleteHandler =
             todoDeleteUseCase(TodoDeleteRequest(id)).mapLeft { it.toHttpError() }.bind()
         }
         call.respond(HttpStatusCode.OK)
-    }.handleError { call.respondError(it) }.run()
+    }.handleError { call.respondError(it) }.fold()
 }

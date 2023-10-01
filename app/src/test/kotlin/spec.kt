@@ -19,11 +19,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.withCharset
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
 import org.testcontainers.containers.BindMode
@@ -147,7 +143,7 @@ class TestEnvironment {
     val applicationUrl = "http://localhost:${applicationProperties.ktorProperties.port}"
 
     @OptIn(DelicateCoroutinesApi::class)
-    private val applicationJob = GlobalScope.launch { application(applicationProperties).run() }
+    private val applicationJob = GlobalScope.launch { application(applicationProperties).use { awaitCancellation() } }
 
     val client = HttpClient(CIO) {
         expectSuccess = false
