@@ -1,7 +1,5 @@
 package todoapp.domain
 
-import arrow.core.Either
-
 // Интерфейс транзакции aka Port Out
 
 interface TransactionManager {
@@ -9,7 +7,7 @@ interface TransactionManager {
         isolation: TransactionIsolation,
         readOnly: Boolean = false,
         block: TransactionScope.() -> T
-    ): Either<DomainError.UnexpectedError ,T>
+    ): T
 }
 
 enum class TransactionIsolation {

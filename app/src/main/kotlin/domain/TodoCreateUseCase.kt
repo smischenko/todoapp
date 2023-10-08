@@ -1,9 +1,6 @@
 package todoapp.domain
 
-import arrow.core.Either
-import todoapp.domain.DomainError.UnexpectedError
-
-typealias TodoCreateUseCase = suspend (TodoCreateRequest) -> Either<UnexpectedError, Todo>
+typealias TodoCreateUseCase = suspend (TodoCreateRequest) -> Todo
 
 data class TodoCreateRequest(val text: String)
 

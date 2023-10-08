@@ -12,7 +12,7 @@ import org.jooq.meta.jaxb.Target
 val kotlin_version = "1.7.0"
 val ktor_version = "2.0.2"
 val logback_version = "1.2.11"
-val arrow_version = "1.1.3-alpha.37"
+val arrow_version = "1.2.0"
 val postgres_version = "42.3.6"
 val hikari_version = "5.0.1"
 val flyway_version = "8.5.12"

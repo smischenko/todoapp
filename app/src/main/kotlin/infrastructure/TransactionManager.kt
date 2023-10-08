@@ -1,14 +1,10 @@
 package todoapp.infrastructure
 
-import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
-import todoapp.domain.DomainError.UnexpectedError
 import todoapp.domain.TransactionIsolation
 import todoapp.domain.TransactionManager
 import todoapp.domain.TransactionScope
@@ -24,7 +20,7 @@ fun transactionManager(dataSource: DataSource): TransactionManager =
             isolation: TransactionIsolation,
             readOnly: Boolean,
             block: TransactionScope.() -> T
-        ): Either<UnexpectedError, T> =
+        ): T =
             withContext(connectionAcquisition) { dataSource.connection }.use { connection ->
                 connection.autoCommit = false
                 connection.transactionIsolation = isolation.toJdbcValue()
@@ -32,10 +28,9 @@ fun transactionManager(dataSource: DataSource): TransactionManager =
                 try {
                     JdbcTransactionScope(connection).block()
                         .also { connection.commit() }
-                        .right()
                 } catch (t: Throwable) {
                     connection.rollback()
-                    UnexpectedError.left()
+                    throw t
                 }
             }
     }

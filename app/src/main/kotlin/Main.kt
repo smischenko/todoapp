@@ -58,12 +58,12 @@ fun application(properties: ApplicationProperties): Resource<Unit> = resource {
     val todoReadUseCase = todoReadUseCase(transactionManager, selectAllTodo)
     val todoUpdateUseCase = todoUpdateUseCase(transactionManager, selectTodo, updateTodo)
     val todoDeleteUseCase = todoDeleteUseCase(transactionManager, selectTodo, deleteTodo, selectAllTodo, updateTodoList)
-    val routing = routing(
-        todoCreateHandler(todoCreateUseCase),
-        todoReadHandler(todoReadUseCase),
-        todoUpdateHandler(todoUpdateUseCase),
-        todoDeleteHandler(todoDeleteUseCase)
-    )
+    val routing: Routing.() -> Unit = {
+        todoCreateRoute(todoCreateUseCase)()
+        todoReadRoute(todoReadUseCase)()
+        todoUpdateRoute(todoUpdateUseCase)()
+        todoDeleteRoute(todoDeleteUseCase)()
+    }
     val tracing = tracing(properties.tracingProperties).bind()
     ktorServer(properties.ktorProperties, routing, tracing).bind()
     logger.info("Application started")
@@ -177,6 +177,6 @@ data class DataSourceProperties(
 typealias KtorApplication = Application
 
 infix fun <A> Resource<A>.afterRelease(block: () -> Unit): Resource<A> = resource {
-    Resource({ }, { _, _ -> block() }).bind()
+    arrow.fx.coroutines.resource({ }, { _, _ -> block() }).bind()
     bind()
 }

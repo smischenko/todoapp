@@ -1,7 +1,6 @@
 package todoapp.domain
 
 import arrow.core.Either
-import arrow.core.flatten
 import arrow.core.left
 import arrow.core.right
 
@@ -24,10 +23,10 @@ fun todoUpdateUseCase(
             updateTodo(updated)
             updated.right()
         } ?: DomainError.TodoNotFound.left()
-    }.flatten()
+    }
 }
 
-private fun Todo.apply(request:  TodoUpdateRequest): Todo {
+private fun Todo.apply(request: TodoUpdateRequest): Todo {
     var result = this
     result = request.text?.let { result.copy(text = it.trim()) } ?: result
     result = request.done?.let { result.copy(done = it) } ?: result
