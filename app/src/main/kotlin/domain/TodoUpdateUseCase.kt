@@ -3,6 +3,7 @@ package todoapp.domain
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
+import todoapp.domain.TransactionIsolation.SERIALIZABLE
 
 typealias TodoUpdateUseCase = suspend (TodoUpdateRequest) -> Either<DomainError, Todo>
 
@@ -13,11 +14,11 @@ data class TodoUpdateRequest(
 )
 
 fun todoUpdateUseCase(
-    tm: TransactionManager,
+    database: Database,
     selectTodo: SelectTodo,
     updateTodo: UpdateTodo
 ): TodoUpdateUseCase = { request ->
-    tm.transactional(isolation = TransactionIsolation.SERIALIZABLE) {
+    database.transactional(SERIALIZABLE) {
         selectTodo(request.id)?.let { todo ->
             val updated = todo.apply(request)
             updateTodo(updated)

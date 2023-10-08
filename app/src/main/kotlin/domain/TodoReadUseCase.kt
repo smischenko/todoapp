@@ -1,9 +1,11 @@
 package todoapp.domain
 
+import todoapp.domain.TransactionIsolation.*
+
 typealias TodoReadUseCase = suspend () -> List<Todo>
 
-fun todoReadUseCase(tm: TransactionManager, selectAllTodo: SelectAllTodo): TodoReadUseCase = {
-    tm.transactional(isolation = TransactionIsolation.READ_COMMITTED, readOnly = true) {
+fun todoReadUseCase(database: Database, selectAllTodo: SelectAllTodo): TodoReadUseCase = {
+    database.transactional(READ_COMMITTED, readOnly = true) {
         selectAllTodo()
     }
 }

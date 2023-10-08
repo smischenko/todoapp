@@ -6,20 +6,20 @@ import kotlinx.coroutines.withContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
 import todoapp.domain.TransactionIsolation
-import todoapp.domain.TransactionManager
+import todoapp.domain.Database
 import todoapp.domain.TransactionScope
 import java.sql.Connection
 import javax.sql.DataSource
 
-fun transactionManager(dataSource: DataSource): TransactionManager =
-    object : TransactionManager {
+fun database(dataSource: DataSource): Database =
+    object : Database {
         @OptIn(ExperimentalCoroutinesApi::class)
         private val connectionAcquisition = Dispatchers.IO.limitedParallelism(1)
 
         override suspend fun <T> transactional(
             isolation: TransactionIsolation,
             readOnly: Boolean,
-            block: TransactionScope.() -> T
+            block: suspend TransactionScope.() -> T
         ): T =
             withContext(connectionAcquisition) { dataSource.connection }.use { connection ->
                 connection.autoCommit = false

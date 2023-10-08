@@ -1,17 +1,19 @@
 package todoapp.domain
 
+import todoapp.domain.TransactionIsolation.*
+
 typealias TodoDeleteUseCase = suspend (TodoDeleteRequest) -> Unit
 
 data class TodoDeleteRequest(val id: Int)
 
 fun todoDeleteUseCase(
-    tm: TransactionManager,
+    database: Database,
     selectTodo: SelectTodo,
     deleteTodo: DeleteTodo,
     selectAllTodo: SelectAllTodo,
     updateTodoList: UpdateTodoList
 ): TodoDeleteUseCase = { request ->
-    tm.transactional(isolation = TransactionIsolation.SERIALIZABLE) {
+    database.transactional(SERIALIZABLE) {
         selectTodo(request.id)?.let { todo ->
             deleteTodo(todo.id)
             val tail = selectAllTodo().filter { it.index > todo.index }

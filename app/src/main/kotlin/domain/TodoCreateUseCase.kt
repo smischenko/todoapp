@@ -1,15 +1,17 @@
 package todoapp.domain
 
+import todoapp.domain.TransactionIsolation.*
+
 typealias TodoCreateUseCase = suspend (TodoCreateRequest) -> Todo
 
 data class TodoCreateRequest(val text: String)
 
 fun todoCreateUseCase(
-    tm: TransactionManager,
+    database: Database,
     selectTodoCount: SelectTodoCount,
     insertTodo: InsertTodo,
 ): TodoCreateUseCase = { request ->
-    tm.transactional(isolation = TransactionIsolation.SERIALIZABLE) {
+    database.transactional(SERIALIZABLE) {
         val todoCount = selectTodoCount()
         val todo = Todo(
             id = 0, // set 0 as id is a trick to not break nonnullable id declaration

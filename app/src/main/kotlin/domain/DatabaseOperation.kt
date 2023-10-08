@@ -2,10 +2,10 @@ package todoapp.domain
 
 // Операции с хранилищем aka Port Out
 
-typealias InsertTodo = TransactionScope.(Todo) -> Int
-typealias SelectTodoCount = TransactionScope.() -> Int
-typealias SelectAllTodo = TransactionScope.() -> List<Todo>
-typealias SelectTodo = TransactionScope.(Int) -> Todo?
-typealias UpdateTodo = TransactionScope.(Todo) -> Unit
-typealias UpdateTodoList = TransactionScope.(List<Todo>) -> Unit
-typealias DeleteTodo = TransactionScope.(Int) -> Unit
+typealias InsertTodo = suspend TransactionScope.(Todo) -> Int
+typealias SelectTodoCount = suspend TransactionScope.() -> Int
+typealias SelectAllTodo = suspend TransactionScope.() -> List<Todo>
+typealias SelectTodo = suspend TransactionScope.(Int) -> Todo?
+typealias UpdateTodo = suspend TransactionScope.(Todo) -> Unit
+typealias UpdateTodoList = suspend TransactionScope.(List<Todo>) -> Unit
+typealias DeleteTodo = suspend TransactionScope.(Int) -> Unit

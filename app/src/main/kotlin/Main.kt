@@ -42,7 +42,7 @@ fun application(properties: ApplicationProperties): Resource<Unit> = resource {
     logger.info("Application starting with properties $properties")
     val dataSource = dataSource(properties.dataSourceProperties).bind()
         .also { migrate(it) }
-    val transactionManager = transactionManager(dataSource)
+    val database = database(dataSource)
     val insertTodo = insertTodo()
     val selectTodoCount = selectTodoCount()
     val selectTodo = selectTodo()
@@ -50,14 +50,10 @@ fun application(properties: ApplicationProperties): Resource<Unit> = resource {
     val updateTodo = updateTodo()
     val updateTodoList = updateTodoList()
     val deleteTodo = deleteTodo()
-    val todoCreateUseCase = todoCreateUseCase(
-        transactionManager,
-        selectTodoCount,
-        insertTodo
-    )
-    val todoReadUseCase = todoReadUseCase(transactionManager, selectAllTodo)
-    val todoUpdateUseCase = todoUpdateUseCase(transactionManager, selectTodo, updateTodo)
-    val todoDeleteUseCase = todoDeleteUseCase(transactionManager, selectTodo, deleteTodo, selectAllTodo, updateTodoList)
+    val todoCreateUseCase = todoCreateUseCase(database, selectTodoCount, insertTodo)
+    val todoReadUseCase = todoReadUseCase(database, selectAllTodo)
+    val todoUpdateUseCase = todoUpdateUseCase(database, selectTodo, updateTodo)
+    val todoDeleteUseCase = todoDeleteUseCase(database, selectTodo, deleteTodo, selectAllTodo, updateTodoList)
     val routing: Routing.() -> Unit = {
         todoCreateRoute(todoCreateUseCase)()
         todoReadRoute(todoReadUseCase)()

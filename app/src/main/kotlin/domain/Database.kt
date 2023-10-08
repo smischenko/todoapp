@@ -1,12 +1,12 @@
 package todoapp.domain
 
-// Интерфейс транзакции aka Port Out
+// Интерфейс запуска транзакции aka Port Out
 
-interface TransactionManager {
+interface Database {
     suspend fun <T> transactional(
         isolation: TransactionIsolation,
         readOnly: Boolean = false,
-        block: TransactionScope.() -> T
+        block: suspend TransactionScope.() -> T
     ): T
 }
 
