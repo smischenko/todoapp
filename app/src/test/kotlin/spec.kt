@@ -9,14 +9,12 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.request.get
-import io.ktor.client.request.header
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
+import io.ktor.client.request.*
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.HttpStatusCode.Companion.Created
+import io.ktor.http.HttpStatusCode.Companion.OK
 import io.ktor.http.contentType
 import io.ktor.http.withCharset
 import kotlinx.coroutines.*
@@ -38,7 +36,7 @@ class Spec : FunSpec({
         test("return empty todo list when no todo added") {
             val response = client.get("$applicationUrl/todo")
             response.asClue {
-                it.status shouldBe HttpStatusCode.OK
+                it.status shouldBe OK
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
                 it.bodyAsText() shouldBe """{"todo":[]}"""
             }
@@ -50,7 +48,7 @@ class Spec : FunSpec({
                 header(HttpHeaders.ContentType, ContentType.Application.Json)
             }
             response.asClue {
-                it.status shouldBe HttpStatusCode.Created
+                it.status shouldBe Created
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
                 it.bodyAsText() shouldBe """{"todo":{"id":1,"text":"Купить молока","done":false,"index":0}}"""
             }
@@ -63,7 +61,7 @@ class Spec : FunSpec({
             }
             val response = client.get("$applicationUrl/todo")
             response.asClue {
-                it.status shouldBe HttpStatusCode.OK
+                it.status shouldBe OK
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
                 it.bodyAsText() shouldBe """{"todo":[{"id":1,"text":"Купить молока","done":false,"index":0}]}"""
             }
@@ -84,7 +82,7 @@ class Spec : FunSpec({
             }
             val response = client.get("$applicationUrl/todo")
             response.asClue {
-                it.status shouldBe HttpStatusCode.OK
+                it.status shouldBe OK
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
                 it.bodyAsText() shouldEqualJson """
                     |{
@@ -92,6 +90,93 @@ class Spec : FunSpec({
                     |       {"id":1,"text":"Купить молока","done":false,"index":0},
                     |       {"id":2,"text":"Купить хлеба","done":false,"index":1},
                     |       {"id":3,"text":"Купить яйца","done":false,"index":2}
+                    |   ]
+                    |}
+                    |""".trimMargin()
+            }
+        }
+
+        test("return todo resource when todo updated") {
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить молока"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            val response = client.put("$applicationUrl/todo/1") {
+                setBody("""{"todo":{"done":true}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            response.asClue {
+                it.status shouldBe OK
+                it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
+                it.bodyAsText() shouldBe """{"todo":{"id":1,"text":"Купить молока","done":true,"index":0}}"""
+            }
+        }
+
+        test("return todo list with todo after todo updated") {
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить молока"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            client.put("$applicationUrl/todo/1") {
+                setBody("""{"todo":{"done":true}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            val response = client.get("$applicationUrl/todo")
+            response.asClue {
+                it.status shouldBe OK
+                it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
+                it.bodyAsText() shouldBe """{"todo":[{"id":1,"text":"Купить молока","done":true,"index":0}]}"""
+            }
+        }
+
+        test("return Ok when todo deleted") {
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить молока"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            val response = client.delete("$applicationUrl/todo/1")
+            response.asClue {
+                it.status shouldBe OK
+            }
+        }
+
+        test("return empty list after todo deleted") {
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить молока"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            client.delete("$applicationUrl/todo/1")
+            val response = client.get("$applicationUrl/todo")
+            response.asClue {
+                it.status shouldBe OK
+                it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
+                it.bodyAsText() shouldBe """{"todo":[]}"""
+            }
+        }
+
+        test("return updated list after todo deleted") {
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить молока"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить хлеба"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            client.post("$applicationUrl/todo") {
+                setBody("""{"todo":{"text":"Купить яйца"}}""")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+            }
+            client.delete("$applicationUrl/todo/2")
+            val response = client.get("$applicationUrl/todo")
+            response.asClue {
+                it.status shouldBe OK
+                it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
+                it.bodyAsText() shouldEqualJson """
+                    |{
+                    |   "todo":[
+                    |       {"id":1,"text":"Купить молока","done":false,"index":0},
+                    |       {"id":3,"text":"Купить яйца","done":false,"index":1}
                     |   ]
                     |}
                     |""".trimMargin()
