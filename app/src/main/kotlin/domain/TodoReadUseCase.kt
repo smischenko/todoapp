@@ -4,8 +4,8 @@ import todoapp.domain.TransactionIsolation.*
 
 typealias TodoReadUseCase = suspend () -> List<Todo>
 
-fun todoReadUseCase(database: Database, selectAllTodo: SelectAllTodo): TodoReadUseCase = {
-    database.transactional(READ_COMMITTED, readOnly = true) {
+fun todoReadUseCase(transactional: Transactional, selectAllTodo: SelectAllTodo): TodoReadUseCase = {
+    transactional(READ_COMMITTED, readOnly = true) {
         selectAllTodo()
     }
 }

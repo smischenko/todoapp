@@ -7,13 +7,13 @@ typealias TodoDeleteUseCase = suspend (TodoDeleteRequest) -> Unit
 data class TodoDeleteRequest(val id: Int)
 
 fun todoDeleteUseCase(
-    database: Database,
+    transactional: Transactional,
     selectTodo: SelectTodo,
     deleteTodo: DeleteTodo,
     selectAllTodo: SelectAllTodo,
     updateTodoList: UpdateTodoList
 ): TodoDeleteUseCase = { request ->
-    database.transactional(SERIALIZABLE) {
+    transactional(SERIALIZABLE) {
         selectTodo(request.id)?.let { todo ->
             deleteTodo(todo.id)
             val tail = selectAllTodo().filter { it.index > todo.index }

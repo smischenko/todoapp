@@ -6,17 +6,17 @@ import kotlinx.coroutines.withContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
 import todoapp.domain.TransactionIsolation
-import todoapp.domain.Database
 import todoapp.domain.TransactionScope
+import todoapp.domain.Transactional
 import java.sql.Connection
 import javax.sql.DataSource
 
-fun database(dataSource: DataSource): Database =
-    object : Database {
+fun transactional(dataSource: DataSource): Transactional =
+    object : Transactional {
         @OptIn(ExperimentalCoroutinesApi::class)
         private val connectionAcquisition = Dispatchers.IO.limitedParallelism(1)
 
-        override suspend fun <T> transactional(
+        override suspend fun <T> invoke(
             isolation: TransactionIsolation,
             readOnly: Boolean,
             block: suspend TransactionScope.() -> T
