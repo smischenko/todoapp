@@ -24,7 +24,6 @@ import org.testcontainers.containers.BindMode
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import todoapp.infrastructure.TracingProperties
-import todoapp.jooq.tables.references.TODO
 import java.net.ServerSocket
 import java.nio.charset.StandardCharsets.UTF_8
 
@@ -85,14 +84,14 @@ class Spec : FunSpec({
                 it.status shouldBe OK
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
                 it.bodyAsText() shouldEqualJson """
-                    |{
-                    |   "todo":[
-                    |       {"id":1,"text":"Купить молока","done":false,"index":0},
-                    |       {"id":2,"text":"Купить хлеба","done":false,"index":1},
-                    |       {"id":3,"text":"Купить яйца","done":false,"index":2}
-                    |   ]
-                    |}
-                    |""".trimMargin()
+                    {
+                       "todo":[
+                           {"id":1,"text":"Купить молока","done":false,"index":0},
+                           {"id":2,"text":"Купить хлеба","done":false,"index":1},
+                           {"id":3,"text":"Купить яйца","done":false,"index":2}
+                       ]
+                    }
+                    """.trimIndent()
             }
         }
 
@@ -173,13 +172,13 @@ class Spec : FunSpec({
                 it.status shouldBe OK
                 it.contentType() shouldBe ContentType.Application.Json.withCharset(UTF_8)
                 it.bodyAsText() shouldEqualJson """
-                    |{
-                    |   "todo":[
-                    |       {"id":1,"text":"Купить молока","done":false,"index":0},
-                    |       {"id":3,"text":"Купить яйца","done":false,"index":1}
-                    |   ]
-                    |}
-                    |""".trimMargin()
+                    {
+                       "todo":[
+                           {"id":1,"text":"Купить молока","done":false,"index":0},
+                           {"id":3,"text":"Купить яйца","done":false,"index":1}
+                       ]
+                    }
+                    """.trimIndent()
             }
         }
     }
@@ -243,7 +242,7 @@ class TestEnvironment {
 
     fun reset() {
         with(DSL.using(dataSource, SQLDialect.POSTGRES)) {
-            deleteFrom(TODO).execute()
+            execute("DELETE FROM todo")
             execute("SELECT setval('todo_id_seq', 1, false)")
         }
         wireMock.resetToDefaultMappings()

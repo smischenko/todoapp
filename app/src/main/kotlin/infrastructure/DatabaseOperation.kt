@@ -4,64 +4,69 @@ import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.withContext
 import org.jooq.Record
 import todoapp.domain.*
-import todoapp.jooq.tables.references.TODO
 
 fun selectTodoCount(): SelectTodoCount = {
     withContext(IO) {
-        jooq.selectCount().from(TODO).fetchSingle().value1()
+        jooq.resultQuery("SELECT count(*) FROM todo")
+            .fetchSingle()
+            .get(0, Int::class.java)
     }
 }
 
 fun insertTodo(): InsertTodo = { todo ->
     withContext(IO) {
-        jooq.insertInto(TODO)
-            .set(TODO.TEXT, todo.text)
-            .set(TODO.DONE, todo.done)
-            .set(TODO.INDEX, todo.index)
-            .returning(TODO.ID)
-            .fetchSingle(TODO.ID)!!
+        val query = """
+            INSERT INTO todo(text, done, index)
+            VALUES (?, ?, ?)
+            RETURNING id
+        """.trimIndent()
+        jooq.resultQuery(query, todo.text, todo.done, todo.index)
+            .fetchSingle().get(0, Int::class.java)
     }
 }
 
 fun selectAllTodo(): SelectAllTodo = {
     withContext(IO) {
-        jooq.select()
-            .from(TODO)
-            .orderBy(TODO.INDEX)
-            .fetch { it.toTodo() }
+        val query = """
+            SELECT id, text, done, index
+            FROM todo
+            ORDER BY index
+        """.trimIndent()
+        jooq.resultQuery(query).fetch { it.toTodo() }
     }
 }
 
 fun selectTodo(): SelectTodo = { id ->
     withContext(IO) {
-        jooq.select()
-            .from(TODO)
-            .where(TODO.ID.eq(id))
-            .fetchOne { it.toTodo() }
+        val query = """
+            SELECT id, text, done, index
+            FROM todo
+            WHERE id = ?
+        """.trimIndent()
+        jooq.resultQuery(query, id).fetchOne { it.toTodo() }
     }
 }
 
 fun updateTodo(): UpdateTodo = { todo ->
     withContext(IO) {
-        jooq.update(TODO)
-            .set(TODO.TEXT, todo.text)
-            .set(TODO.DONE, todo.done)
-            .set(TODO.INDEX, todo.index)
-            .where(TODO.ID.eq(todo.id))
-            .execute()
+        val query = """
+            UPDATE todo
+            SET text = ?, done = ?, index = ?
+            WHERE id = ?
+        """.trimIndent()
+        jooq.query(query, todo.text, todo.done, todo.index, todo.id).execute()
     }
 }
 
 fun updateTodoList(): UpdateTodoList = { todos ->
     withContext(IO) {
         if (todos.isNotEmpty()) {
-            val batch = jooq.batch(
-                jooq.update(TODO)
-                    .set(TODO.TEXT, null as String?)
-                    .set(TODO.DONE, null as Boolean?)
-                    .set(TODO.INDEX, null as Int?)
-                    .where(TODO.ID.eq(null as Int?))
-            )
+            val query = """
+                UPDATE todo
+                SET text = ?, done = ?, index = ?
+                WHERE id = ?
+            """.trimIndent()
+            val batch = jooq.batch(query)
             todos.forEach { todo ->
                 batch.bind(todo.text, todo.done, todo.index, todo.id)
             }
@@ -72,16 +77,14 @@ fun updateTodoList(): UpdateTodoList = { todos ->
 
 fun deleteTodo(): DeleteTodo = { id ->
     withContext(IO) {
-        jooq.deleteFrom(TODO)
-            .where(TODO.ID.eq(id))
-            .execute()
+        jooq.query("DELETE FROM todo WHERE id = ?", id).execute()
     }
 }
 
 private fun Record.toTodo() =
     Todo(
-        id = this[TODO.ID]!!,
-        text = this[TODO.TEXT]!!,
-        done = this[TODO.DONE]!!,
-        index = this[TODO.INDEX]!!
+        id = this.get("id", Int::class.java),
+        text = this.get("text", String::class.java),
+        done = this.get("done", Boolean::class.java),
+        index = this.get("index", Int::class.java),
     )
